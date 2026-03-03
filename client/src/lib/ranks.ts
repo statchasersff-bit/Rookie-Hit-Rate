@@ -1,33 +1,19 @@
 import type { SeasonFinish, RankedSeason, Scoring } from "./types";
 
-function getPointsField(scoring: Scoring): keyof SeasonFinish {
+function getRankField(scoring: Scoring): keyof SeasonFinish {
   switch (scoring) {
-    case "ppr": return "fantasy_points_ppr";
-    case "hppr": return "fantasy_points_hppr";
-    case "std": return "fantasy_points_std";
+    case "ppr": return "rank_ppr";
+    case "hppr": return "rank_hppr";
+    case "std": return "rank_std";
   }
 }
 
 export function computeRanks(finishes: SeasonFinish[], scoring: Scoring): RankedSeason[] {
-  const grouped = new Map<string, SeasonFinish[]>();
-
-  for (const f of finishes) {
-    const key = `${f.season}-${f.pos}`;
-    if (!grouped.has(key)) grouped.set(key, []);
-    grouped.get(key)!.push(f);
-  }
-
-  const field = getPointsField(scoring);
-  const ranked: RankedSeason[] = [];
-
-  for (const [, group] of grouped) {
-    const sorted = [...group].sort((a, b) => (b[field] as number) - (a[field] as number));
-    sorted.forEach((f, idx) => {
-      ranked.push({ ...f, pos_rank: idx + 1 });
-    });
-  }
-
-  return ranked;
+  const field = getRankField(scoring);
+  return finishes.map((f) => ({
+    ...f,
+    pos_rank: f[field] as number,
+  }));
 }
 
 export function buildRankMap(rankedSeasons: RankedSeason[]): Map<string, RankedSeason[]> {

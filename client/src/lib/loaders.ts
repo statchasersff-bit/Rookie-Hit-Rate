@@ -57,5 +57,8 @@ export async function loadSeasonFinishes(): Promise<SeasonFinish[]> {
     fantasy_points_ppr: parseFloat(row.fantasy_points_ppr),
     fantasy_points_hppr: parseFloat(row.fantasy_points_hppr),
     fantasy_points_std: parseFloat(row.fantasy_points_std),
+    rank_ppr: parseInt(row.rank_ppr),
+    rank_hppr: parseInt(row.rank_hppr),
+    rank_std: parseInt(row.rank_std),
   }));
 }

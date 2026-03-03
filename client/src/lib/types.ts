@@ -27,6 +27,9 @@ export interface SeasonFinish {
   fantasy_points_ppr: number;
   fantasy_points_hppr: number;
   fantasy_points_std: number;
+  rank_ppr: number;
+  rank_hppr: number;
+  rank_std: number;
 }
 
 export interface RankedSeason extends SeasonFinish {
