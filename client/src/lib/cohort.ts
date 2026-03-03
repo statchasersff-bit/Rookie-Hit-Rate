@@ -1,6 +1,6 @@
 import type { RookieDraft, RankedSeason, CohortSummary, Pos, Outcome, Filters } from "./types";
 
-export const LATEST_SEASON_WITH_DATA = 2024;
+export const LATEST_SEASON_WITH_DATA = 2025;
 
 function getThreshold(outcome: Outcome, pos: Pos): number {
   switch (outcome) {

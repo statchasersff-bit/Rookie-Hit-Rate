@@ -10,11 +10,13 @@ A premium dynasty fantasy football analytics tool that analyzes rookie draft hit
 - **Express server** serves static files only
 
 ## Data Pipeline
-Two data generation scripts:
+Three data generation scripts:
 1. `scripts/generate-data.cjs` — Parses user-provided ADP CSV, generates `rookie_drafts.csv` with nflverse-compatible player IDs
 2. `scripts/build_fantasy_data.py` — Pulls real seasonal stats from nflverse (2017-2024), computes PPR/Half PPR/Standard fantasy points, positional ranks, outputs `season_finishes.csv`
+3. `scripts/fetch_sleeper_2025.py` — Fetches 2025 season stats from Sleeper's public API (weeks 1-18), computes seasonal totals and positional ranks, appends to `season_finishes.csv`
 
 Player IDs are nflverse-compatible slugs (e.g., `bijan-robinson`, `patrick-mahomes`) — Jr/Sr suffixes stripped for matching.
+`LATEST_SEASON_WITH_DATA` in `cohort.ts` controls which rookie classes get evaluated vs marked "too_early".
 
 ## Key Files
 - `client/src/App.tsx` - Main app with tab navigation and provider wiring
@@ -38,7 +40,7 @@ Player IDs are nflverse-compatible slugs (e.g., `bijan-robinson`, `patrick-mahom
 
 ## Data Files
 - `client/public/data/rookie_drafts.csv` - ~2150 rows (2017-2025 dynasty rookie drafts across 4 format/scoring combos)
-- `client/public/data/season_finishes.csv` - ~4482 real season records from nflverse with pre-computed ranks
+- `client/public/data/season_finishes.csv` - ~5117 real season records (2017-2024 from nflverse, 2025 from Sleeper API) with pre-computed ranks
 - `client/public/data/rookie_adp.csv` - Source ADP data (user-provided)
 - Draft CSV schema: player_id, player_name, pos, pos_rank, rookie_year, adp_format, scoring_format, rookie_round, rookie_pick, current_nfl_team, current_age, height, weight
 - Season CSV schema: player_id, player_name, season, pos, games, fantasy_points_ppr, fantasy_points_hppr, fantasy_points_std, rank_ppr, rank_hppr, rank_std
