@@ -1,0 +1,123 @@
+Exact Build Plan For Your Fantasy Performance Dataset (2017–2025)
+
+You already uploaded:
+
+rookie_adp_master.csv
+
+Now we generate:
+
+fantasy_season_ranks.csv
+
+Containing:
+
+fp_ppr
+
+fp_half
+
+rank_ppr
+
+rank_half
+
+No standard scoring.
+
+🔥 STEP-BY-STEP (Do This Exactly)
+1️⃣ Install nfl_data_py in Replit
+
+Open shell:
+
+pip install nfl_data_py
+2️⃣ Pull Seasonal Stats
+
+Create build_fantasy_data.py
+
+import nfl_data_py as nfl
+import pandas as pd
+
+years = list(range(2017, 2026))
+seasonal = nfl.import_seasonal_data(years)
+
+seasonal = seasonal[
+    seasonal["position"].isin(["QB", "RB", "WR", "TE"])
+]
+3️⃣ Compute PPR + Half PPR Points
+def compute_fantasy_points(df):
+    df["fp_base"] = (
+        df["passing_yards"] * 0.04 +
+        df["passing_tds"] * 4 -
+        df["interceptions"] * 2 +
+        df["rushing_yards"] * 0.1 +
+        df["rushing_tds"] * 6 +
+        df["receiving_yards"] * 0.1 +
+        df["receiving_tds"] * 6
+    )
+
+    df["fp_ppr"] = df["fp_base"] + df["receptions"]
+    df["fp_half"] = df["fp_base"] + df["receptions"] * 0.5
+
+    return df
+
+seasonal = compute_fantasy_points(seasonal)
+4️⃣ Remove Low-Usage Noise
+
+Very important for clean ranks:
+
+seasonal = seasonal[seasonal["games"] >= 8]
+
+This prevents 1-game RB1 nonsense.
+
+5️⃣ Compute Positional Ranks Per Season
+def compute_pos_ranks(df, format_col):
+    df = df.sort_values(
+        ["season", "position", format_col],
+        ascending=[True, True, False]
+    )
+    df[f"rank_{format_col}"] = (
+        df.groupby(["season", "position"])
+        .cumcount() + 1
+    )
+    return df
+
+seasonal = compute_pos_ranks(seasonal, "fp_ppr")
+seasonal = compute_pos_ranks(seasonal, "fp_half")
+6️⃣ Export Final Dataset
+final_cols = [
+    "player_name",
+    "season",
+    "position",
+    "games",
+    "fp_ppr",
+    "fp_half",
+    "rank_fp_ppr",
+    "rank_fp_half"
+]
+
+seasonal[final_cols].to_csv(
+    "fantasy_season_ranks.csv",
+    index=False
+)
+
+You now have your production file.
+
+🧠 Next: Compute Rookie Outcomes
+
+After this, you will join:
+
+rookie_adp_master.csv
+
+with
+
+fantasy_season_ranks.csv
+
+And compute:
+
+For each player:
+
+elite_hit_ppr = any rank_fp_ppr <= 12
+starter_hit_ppr = any rank_fp_ppr <= 24
+flex_hit_ppr = any rank_fp_ppr <= 36 (RB/WR only)
+
+same for half
+
+Breakout:
+
+first_hit_season - rookie_class_year + 1
