@@ -77,11 +77,12 @@ function generateOverviewInsights(cohorts: CohortSummary[], outcomeName: string)
 
     const worst = withHits.reduce((a, b) => (b.hit_rate < a.hit_rate ? b : a));
     if (worst.hit_rate < best.hit_rate) {
+      const missRate = 1 - worst.hit_rate;
       insights.push({
         icon: TrendingDown,
         title: "Toughest Cohort",
-        stat: `${(worst.bust_rate * 100).toFixed(0)}% Bust`,
-        body: `${worst.pos} Round ${worst.rookie_round} — only ${worst.hits}/${worst.total} players hit.`,
+        stat: `${(missRate * 100).toFixed(0)}% Miss`,
+        body: `${worst.pos} Round ${worst.rookie_round} — only ${worst.hits}/${worst.total} players hit at the ${outcomeName.toLowerCase()} threshold.`,
         tone: "negative",
       });
     }
