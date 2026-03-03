@@ -141,6 +141,17 @@ export function computeCohorts(
   });
 }
 
+export interface TrendPoint {
+  year: number;
+  hitRate: number;
+  n: number;
+  hits: number;
+  eliteHits: number;
+  starterHits: number;
+  bustCount: number;
+  incomplete: boolean;
+}
+
 export function computeTrends(
   drafts: RookieDraft[],
   rankMap: Map<string, RankedSeason[]>,
@@ -148,7 +159,7 @@ export function computeTrends(
   round: number,
   outcome: Outcome,
   minGames: number
-): { year: number; hitRate: number; n: number }[] {
+): TrendPoint[] {
   const yearGroups = new Map<number, RookieDraft[]>();
   for (const d of drafts) {
     if (d.pos !== pos || d.rookie_round !== round) continue;
@@ -157,19 +168,44 @@ export function computeTrends(
     yearGroups.get(d.rookie_year)!.push(d);
   }
 
-  const results: { year: number; hitRate: number; n: number }[] = [];
+  const results: TrendPoint[] = [];
+  const currentYear = LATEST_SEASON_WITH_DATA;
   for (const [year, group] of yearGroups) {
-    let hits = 0;
+    let hits = 0, eliteHits = 0, starterHits = 0, bustCount = 0;
     for (const d of group) {
       const seasons = rankMap.get(d.player_id) || [];
       const threshold = getThreshold(outcome, pos);
       const isHit = seasons.some((s) => s.games >= minGames && s.season >= d.rookie_year && s.pos_rank <= threshold);
       if (isHit) hits++;
+
+      let bestRank = Infinity;
+      for (const s of seasons) {
+        if (s.games >= minGames && s.pos_rank < bestRank) bestRank = s.pos_rank;
+      }
+      if (bestRank <= 12) eliteHits++;
+      else if (bestRank <= 24) starterHits++;
+      else if (bestRank > 36) bustCount++;
     }
-    results.push({ year, hitRate: group.length > 0 ? hits / group.length : 0, n: group.length });
+    const seasonsPlayed = currentYear - year;
+    results.push({
+      year,
+      hitRate: group.length > 0 ? hits / group.length : 0,
+      n: group.length,
+      hits,
+      eliteHits,
+      starterHits,
+      bustCount,
+      incomplete: seasonsPlayed < 3,
+    });
   }
 
   return results.sort((a, b) => a.year - b.year);
+}
+
+export interface SurvivalGroup {
+  group: string;
+  n: number;
+  data: { year: number; pct: number; hits: number; eligible: number }[];
 }
 
 export function computeSurvival(
@@ -180,7 +216,7 @@ export function computeSurvival(
   minGames: number,
   filterPos?: Pos[],
   filterRounds?: number[]
-): { group: string; data: { year: number; pct: number }[] }[] {
+): SurvivalGroup[] {
   const groups = new Map<string, RookieDraft[]>();
 
   for (const d of drafts) {
@@ -192,15 +228,19 @@ export function computeSurvival(
     groups.get(key)!.push(d);
   }
 
-  const results: { group: string; data: { year: number; pct: number }[] }[] = [];
+  const results: SurvivalGroup[] = [];
+  const currentYear = LATEST_SEASON_WITH_DATA;
 
   for (const [group, gDrafts] of groups) {
     const total = gDrafts.length;
-    const data: { year: number; pct: number }[] = [];
+    const data: { year: number; pct: number; hits: number; eligible: number }[] = [];
 
     for (let yr = 1; yr <= 6; yr++) {
       let hitsByYear = 0;
+      let eligible = 0;
       for (const d of gDrafts) {
+        if (d.rookie_year + yr - 1 > currentYear) continue;
+        eligible++;
         const seasons = rankMap.get(d.player_id) || [];
         const threshold = getThreshold(outcome, d.pos);
         const hasHit = seasons.some(
@@ -208,10 +248,10 @@ export function computeSurvival(
         );
         if (hasHit) hitsByYear++;
       }
-      data.push({ year: yr, pct: total > 0 ? hitsByYear / total : 0 });
+      data.push({ year: yr, pct: eligible > 0 ? hitsByYear / eligible : 0, hits: hitsByYear, eligible });
     }
 
-    results.push({ group, data });
+    results.push({ group, n: total, data });
   }
 
   return results.sort((a, b) => a.group.localeCompare(b.group));

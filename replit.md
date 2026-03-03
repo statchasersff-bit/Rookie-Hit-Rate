@@ -28,12 +28,12 @@ Player IDs are nflverse-compatible slugs (e.g., `bijan-robinson`, `patrick-mahom
 - `client/src/lib/export.ts` - CSV export utility
 
 ## Components
-- `navbar.tsx` - Sticky top nav with logo, tabs, theme toggle, export button
+- `navbar.tsx` - Sticky top nav with logo, tabs, theme toggle
 - `filter-bar.tsx` - Sticky filter bar (seasons 2017-2025, format, scoring, outcome, position, rounds 1-7, min games, confidence toggle)
-- `heatmap-table.tsx` - Main heatmap visualization (position x round matrix)
-- `pick-lens-card.tsx` - Side card showing cohort details on hover/click
-- `trends-chart.tsx` - Line chart of hit rates by draft class year (rounds 1-7)
-- `cohort-survival-chart.tsx` - Survival-style chart (time to breakout)
+- `heatmap-table.tsx` - Heatmap (position x round) with positional pill badges (QB=blue, RB=green, WR=purple, TE=gold), confidence dots, E/S/F/B cell density, hover micro-interactions
+- `pick-lens-card.tsx` - Side card with positional pill badge, thicker bar chart with % labels, hover tooltip
+- `trends-chart.tsx` - Hit rate trends with: view modes (yearly/rolling3yr/cumulative), compare round overlay, stability gauge, incomplete cohort markers, best/worst gold/red dots, 3-yr avg smoothing, auto-generated headline, stat-first analysis cards
+- `cohort-survival-chart.tsx` - Survival chart with: position-consistent colors, focus/highlight mode, N in legend+tooltip, Year 3 reference line, Patience Index panel, Roster Decision Aid table, delta after Year 3 summary, headline banner, stat-first analysis cards
 - `player-table.tsx` - Searchable/sortable player explorer table with Team column
 - `player-drawer.tsx` - Slide-in drawer with player detail, physical info, and season history
 - `theme-provider.tsx` - Dark/light mode management
