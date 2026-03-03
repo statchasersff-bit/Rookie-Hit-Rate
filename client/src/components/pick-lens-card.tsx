@@ -49,6 +49,7 @@ export function PickLensCard() {
         <div className="grid grid-cols-2 gap-2">
           <StatBlock label="Elite Rate" value={`${(cohort.elite_rate * 100).toFixed(1)}%`} accent />
           <StatBlock label="Starter Rate" value={`${(cohort.starter_rate * 100).toFixed(1)}%`} />
+          <StatBlock label="Flex Rate" value={`${(cohort.flex_rate * 100).toFixed(1)}%`} />
           <StatBlock label="Bust Rate" value={`${(cohort.bust_rate * 100).toFixed(1)}%`} negative />
           <StatBlock label="Med. Breakout" value={cohort.median_breakout ? `Yr ${cohort.median_breakout.toFixed(1)}` : "N/A"} />
         </div>

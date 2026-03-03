@@ -6,7 +6,7 @@ function getThreshold(outcome: Outcome, pos: Pos): number {
   switch (outcome) {
     case "elite": return 12;
     case "starter": return 24;
-    case "flex": return (pos === "QB" || pos === "TE") ? 24 : 36;
+    case "flex": return 36;
   }
 }
 
@@ -70,16 +70,10 @@ export function computeCohorts(
 
       let isHit = false;
       let firstHitSeason: number | null = null;
-      let isElite = false, isStarter = false, isFlex = false;
+      let bestRank = Infinity;
 
       for (const s of validSeasons.sort((a, b) => a.season - b.season)) {
-        const eliteT = getThreshold("elite", position);
-        const starterT = getThreshold("starter", position);
-        const flexT = getThreshold("flex", position);
-
-        if (s.pos_rank <= eliteT) isElite = true;
-        if (s.pos_rank <= starterT) isStarter = true;
-        if (s.pos_rank <= flexT) isFlex = true;
+        if (s.pos_rank < bestRank) bestRank = s.pos_rank;
 
         const threshold = getThreshold(filters.outcome, position);
         if (!isHit && s.pos_rank <= threshold) {
@@ -88,11 +82,17 @@ export function computeCohorts(
         }
       }
 
+      const eliteT = getThreshold("elite", position);
+      const starterT = getThreshold("starter", position);
+      const flexT = getThreshold("flex", position);
+
+      if (bestRank <= eliteT) eliteHits++;
+      else if (bestRank <= starterT) starterHits++;
+      else if (bestRank <= flexT) flexHits++;
+      else bustCount++;
+
       if (isHit) {
         hits++;
-        if (isElite) eliteHits++;
-        if (isStarter) starterHits++;
-        if (isFlex) flexHits++;
 
         if (firstHitSeason !== null) {
           const bt = firstHitSeason - draft.rookie_year + 1;
@@ -101,8 +101,6 @@ export function computeCohorts(
           else if (bt === 2) year2Hits++;
           else year3PlusHits++;
         }
-      } else {
-        bustCount++;
       }
     }
 
@@ -243,15 +241,18 @@ export function computePlayerSummaries(
       }
     }
 
-    const isElite = seasons.some((s) => s.games >= minGames && s.pos_rank <= 12);
-    const isStarter = seasons.some((s) => s.games >= minGames && s.pos_rank <= 24);
-    const isFlex = seasons.some((s) => s.games >= minGames && s.pos_rank <= 36);
+    let bestQualifiedRank = Infinity;
+    for (const s of seasons) {
+      if (s.games >= minGames && s.pos_rank < bestQualifiedRank) {
+        bestQualifiedRank = s.pos_rank;
+      }
+    }
 
     let hitType: "elite" | "starter" | "flex" | "bust" | "too_early" = "bust";
     if (d.rookie_year > LATEST_SEASON_WITH_DATA) hitType = "too_early";
-    else if (isElite) hitType = "elite";
-    else if (isStarter) hitType = "starter";
-    else if (isFlex) hitType = "flex";
+    else if (bestQualifiedRank <= 12) hitType = "elite";
+    else if (bestQualifiedRank <= 24) hitType = "starter";
+    else if (bestQualifiedRank <= 36) hitType = "flex";
 
     return {
       player_id: d.player_id,

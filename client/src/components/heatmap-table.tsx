@@ -105,12 +105,14 @@ export function HeatmapTable() {
                             <div className="space-y-1.5 text-xs">
                               <div className="font-bold text-[#d4af37]">{pos} Round {round}</div>
                               <div className="grid grid-cols-2 gap-x-4 gap-y-0.5">
-                                <span className="opacity-70">Elite (Top 12):</span>
+                                <span className="opacity-70">Elite (1–12):</span>
                                 <span className="font-medium">{(cohort.elite_rate * 100).toFixed(1)}%</span>
-                                <span className="opacity-70">Starter (Top 24):</span>
+                                <span className="opacity-70">Starter (13–24):</span>
                                 <span className="font-medium">{(cohort.starter_rate * 100).toFixed(1)}%</span>
-                                <span className="opacity-70">Flex (Top 36):</span>
+                                <span className="opacity-70">Flex (25–36):</span>
                                 <span className="font-medium">{(cohort.flex_rate * 100).toFixed(1)}%</span>
+                                <span className="opacity-70">Bust (37+):</span>
+                                <span className="font-medium">{(cohort.bust_rate * 100).toFixed(1)}%</span>
                                 <span className="opacity-70">Sample:</span>
                                 <span className="font-medium">N={cohort.total}</span>
                                 <span className="opacity-70">Median Breakout:</span>
