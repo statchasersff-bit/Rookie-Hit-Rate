@@ -2,11 +2,127 @@ import { useMemo, useState } from "react";
 import { useData } from "@/lib/data-context";
 import { computeSurvival } from "@/lib/cohort";
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from "recharts";
+import { Zap, Clock, TrendingUp, ArrowUpRight, Award, Layers } from "lucide-react";
 
 const groupColors = [
   "#0b3a7a", "#d4af37", "#1a5ab8", "#7a9cc7",
   "#b8960e", "#4a7ab8", "#c4a040",
 ];
+
+interface CohortInsight {
+  icon: typeof Zap;
+  title: string;
+  body: string;
+  tone: "positive" | "negative" | "neutral";
+}
+
+function generateCohortInsights(
+  survivalData: { group: string; data: { year: number; pct: number }[] }[],
+  outcomeName: string
+): CohortInsight[] {
+  if (survivalData.length === 0) return [];
+
+  const insights: CohortInsight[] = [];
+
+  const withY1 = survivalData
+    .map((g) => ({ group: g.group, y1: g.data.find((d) => d.year === 1)?.pct ?? 0 }))
+    .filter((g) => g.y1 > 0)
+    .sort((a, b) => b.y1 - a.y1);
+
+  if (withY1.length > 0) {
+    const fastest = withY1[0];
+    insights.push({
+      icon: Zap,
+      title: "Fastest to Hit",
+      body: `${fastest.group} players break out the quickest — ${(fastest.y1 * 100).toFixed(1)}% achieve a ${outcomeName.toLowerCase()} finish in their rookie season.${withY1.length > 1 ? ` Compare to ${withY1[withY1.length - 1].group} at just ${(withY1[withY1.length - 1].y1 * 100).toFixed(1)}%.` : ""}`,
+      tone: "positive",
+    });
+  }
+
+  const withCeiling = survivalData
+    .map((g) => {
+      const maxPct = Math.max(...g.data.map((d) => d.pct));
+      return { group: g.group, ceiling: maxPct };
+    })
+    .sort((a, b) => b.ceiling - a.ceiling);
+
+  if (withCeiling.length > 0) {
+    const highest = withCeiling[0];
+    const lowest = withCeiling[withCeiling.length - 1];
+    insights.push({
+      icon: Award,
+      title: "Highest Ceiling",
+      body: `${highest.group} reaches the highest eventual hit rate of ${(highest.ceiling * 100).toFixed(1)}%.${withCeiling.length > 1 && lowest.ceiling < highest.ceiling ? ` ${lowest.group} tops out at only ${(lowest.ceiling * 100).toFixed(1)}%.` : ""}`,
+      tone: "positive",
+    });
+  }
+
+  const steepestGrowth = survivalData
+    .map((g) => {
+      const y1 = g.data.find((d) => d.year === 1)?.pct ?? 0;
+      const y3 = g.data.find((d) => d.year === 3)?.pct ?? 0;
+      return { group: g.group, y1, y3, growth: y3 - y1 };
+    })
+    .filter((g) => g.growth > 0)
+    .sort((a, b) => b.growth - a.growth);
+
+  if (steepestGrowth.length > 0 && steepestGrowth[0].growth > 0.05) {
+    const top = steepestGrowth[0];
+    insights.push({
+      icon: TrendingUp,
+      title: "Biggest Year 1–3 Jump",
+      body: `${top.group} sees the most development after rookie year — going from ${(top.y1 * 100).toFixed(1)}% in Year 1 to ${(top.y3 * 100).toFixed(1)}% by Year 3, a +${(top.growth * 100).toFixed(1)} point gain. Patience pays off here.`,
+      tone: "neutral",
+    });
+  }
+
+  const plateauGroups = survivalData
+    .map((g) => {
+      const y3 = g.data.find((d) => d.year === 3)?.pct ?? 0;
+      const y6 = g.data.find((d) => d.year === 6)?.pct ?? 0;
+      return { group: g.group, y3, y6, lateGrowth: y6 - y3 };
+    })
+    .filter((g) => g.y3 > 0);
+
+  const earlyPlateau = plateauGroups.filter((g) => g.lateGrowth < 0.03 && g.y3 > 0.1);
+  if (earlyPlateau.length > 0) {
+    const names = earlyPlateau.map((g) => g.group).join(", ");
+    insights.push({
+      icon: Clock,
+      title: "Early Plateau",
+      body: `${names} essentially plateau${earlyPlateau.length === 1 ? "s" : ""} by Year 3 — very little additional breakout happens after that. If they haven't hit by then, they likely won't.`,
+      tone: "negative",
+    });
+  }
+
+  const lateBloomers = plateauGroups.filter((g) => g.lateGrowth >= 0.08);
+  if (lateBloomers.length > 0) {
+    const names = lateBloomers.map((g) => g.group).join(", ");
+    insights.push({
+      icon: ArrowUpRight,
+      title: "Late Bloomers",
+      body: `${names} continue${lateBloomers.length === 1 ? "s" : ""} to develop well past Year 3 — gaining ${lateBloomers.map((g) => `+${(g.lateGrowth * 100).toFixed(1)}`).join(", ")} points between Years 3 and 6. Hold these assets longer before cutting.`,
+      tone: "neutral",
+    });
+  }
+
+  if (survivalData.length >= 3) {
+    const y6Sorted = survivalData
+      .map((g) => ({ group: g.group, y6: g.data.find((d) => d.year === 6)?.pct ?? 0 }))
+      .sort((a, b) => b.y6 - a.y6);
+    const spread = y6Sorted[0].y6 - y6Sorted[y6Sorted.length - 1].y6;
+    if (spread > 0.15) {
+      insights.push({
+        icon: Layers,
+        title: "Wide Separation",
+        body: `There's a ${(spread * 100).toFixed(1)} percentage point gap between the best group (${y6Sorted[0].group}, ${(y6Sorted[0].y6 * 100).toFixed(1)}%) and worst (${y6Sorted[y6Sorted.length - 1].group}, ${(y6Sorted[y6Sorted.length - 1].y6 * 100).toFixed(1)}%). Draft capital matters significantly here.`,
+        tone: "neutral",
+      });
+    }
+  }
+
+  return insights;
+}
 
 export function CohortSurvivalChart() {
   const { filteredDrafts, rankMap, filters } = useData();
@@ -24,6 +140,13 @@ export function CohortSurvivalChart() {
         filters.rounds.length > 0 ? filters.rounds : undefined
       ),
     [filteredDrafts, rankMap, groupBy, filters]
+  );
+
+  const outcomeName = filters.outcome === "elite" ? "Elite" : filters.outcome === "starter" ? "Starter" : "Flex";
+
+  const insights = useMemo(
+    () => generateCohortInsights(survivalData, outcomeName),
+    [survivalData, outcomeName]
   );
 
   const chartData = useMemo(() => {
@@ -128,6 +251,44 @@ export function CohortSurvivalChart() {
           </LineChart>
         </ResponsiveContainer>
       </div>
+
+      {insights.length > 0 && (
+        <div data-testid="cohort-analysis">
+          <h3 className="text-sm font-bold text-[#0b3a7a] dark:text-white mb-1">Analysis</h3>
+          <div className="w-8 h-[2px] bg-gradient-to-r from-[#d4af37] to-[#d4af37]/50 rounded-full mb-3" />
+          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+            {insights.map((insight, idx) => {
+              const Icon = insight.icon;
+              const toneClasses =
+                insight.tone === "positive"
+                  ? "border-emerald-200 dark:border-emerald-800/40 bg-emerald-50/50 dark:bg-emerald-950/20"
+                  : insight.tone === "negative"
+                    ? "border-red-200 dark:border-red-800/40 bg-red-50/50 dark:bg-red-950/20"
+                    : "border-[#0b3a7a]/10 dark:border-[#d4af37]/10 bg-card";
+              const iconColor =
+                insight.tone === "positive"
+                  ? "text-emerald-600 dark:text-emerald-400"
+                  : insight.tone === "negative"
+                    ? "text-red-500 dark:text-red-400"
+                    : "text-[#0b3a7a] dark:text-[#d4af37]";
+
+              return (
+                <div
+                  key={idx}
+                  className={`rounded-lg border p-3 ${toneClasses}`}
+                  data-testid={`cohort-insight-${idx}`}
+                >
+                  <div className="flex items-center gap-2 mb-1.5">
+                    <Icon className={`h-4 w-4 shrink-0 ${iconColor}`} />
+                    <span className="text-xs font-bold text-foreground">{insight.title}</span>
+                  </div>
+                  <p className="text-xs text-muted-foreground leading-relaxed">{insight.body}</p>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
