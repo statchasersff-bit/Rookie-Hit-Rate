@@ -10,6 +10,15 @@ const hitTypeColors: Record<string, string> = {
   starter: "bg-[#0b3a7a]/10 text-[#0b3a7a] dark:bg-[#0b3a7a]/30 dark:text-[#5a9be6]",
   flex: "bg-[#0b3a7a]/5 text-[#0b3a7a]/70 dark:bg-[#1a3a6a]/30 dark:text-[#8ab4e8]",
   bust: "bg-[#7a3a3a]/10 text-[#7a3a3a] dark:bg-[#7a3a3a]/20 dark:text-[#d4837a]",
+  too_early: "bg-slate-100 text-slate-500 dark:bg-slate-800/40 dark:text-slate-400",
+};
+
+const hitTypeLabels: Record<string, string> = {
+  elite: "Elite",
+  starter: "Starter",
+  flex: "Flex",
+  bust: "Bust",
+  too_early: "Too Early",
 };
 
 type SortField = "player_name" | "pos" | "current_nfl_team" | "rookie_year" | "rookie_round" | "hit_type" | "breakout_time";
@@ -57,7 +66,7 @@ export function PlayerTable() {
         case "rookie_year": cmp = a.rookie_year - b.rookie_year; break;
         case "rookie_round": cmp = a.rookie_round - b.rookie_round || a.rookie_pick - b.rookie_pick; break;
         case "hit_type": {
-          const order = { elite: 0, starter: 1, flex: 2, bust: 3 };
+          const order: Record<string, number> = { elite: 0, starter: 1, flex: 2, bust: 3, too_early: 4 };
           cmp = order[a.hit_type] - order[b.hit_type]; break;
         }
         case "breakout_time": cmp = (a.breakout_time ?? 99) - (b.breakout_time ?? 99); break;
@@ -170,7 +179,7 @@ export function PlayerTable() {
                 </td>
                 <td className="px-3 py-2">
                   <Badge variant="secondary" className={`text-[10px] ${hitTypeColors[player.hit_type]}`}>
-                    {player.hit_type.charAt(0).toUpperCase() + player.hit_type.slice(1)}
+                    {hitTypeLabels[player.hit_type] || player.hit_type}
                   </Badge>
                 </td>
               </tr>

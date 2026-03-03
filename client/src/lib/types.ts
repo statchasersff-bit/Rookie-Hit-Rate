@@ -51,7 +51,7 @@ export interface PlayerSummary {
   best_finish_year: number;
   breakout_year: number | null;
   breakout_time: number | null;
-  hit_type: "elite" | "starter" | "flex" | "bust";
+  hit_type: "elite" | "starter" | "flex" | "bust" | "too_early";
   seasons: RankedSeason[];
 }
 

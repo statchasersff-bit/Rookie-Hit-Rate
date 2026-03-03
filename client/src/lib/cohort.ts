@@ -1,5 +1,7 @@
 import type { RookieDraft, RankedSeason, CohortSummary, Pos, Outcome, Filters } from "./types";
 
+export const LATEST_SEASON_WITH_DATA = 2024;
+
 function getThreshold(outcome: Outcome, pos: Pos): number {
   switch (outcome) {
     case "elite": return 12;
@@ -36,6 +38,7 @@ export function computeCohorts(
 ): CohortSummary[] {
   const filtered = drafts.filter((d) => {
     if (d.rookie_year < filters.yearStart || d.rookie_year > filters.yearEnd) return false;
+    if (d.rookie_year > LATEST_SEASON_WITH_DATA) return false;
     if (filters.positions.length > 0 && !filters.positions.includes(d.pos)) return false;
     if (filters.rounds.length > 0 && !filters.rounds.includes(d.rookie_round)) return false;
     return true;
@@ -151,6 +154,7 @@ export function computeTrends(
   const yearGroups = new Map<number, RookieDraft[]>();
   for (const d of drafts) {
     if (d.pos !== pos || d.rookie_round !== round) continue;
+    if (d.rookie_year > LATEST_SEASON_WITH_DATA) continue;
     if (!yearGroups.has(d.rookie_year)) yearGroups.set(d.rookie_year, []);
     yearGroups.get(d.rookie_year)!.push(d);
   }
@@ -182,6 +186,7 @@ export function computeSurvival(
   const groups = new Map<string, RookieDraft[]>();
 
   for (const d of drafts) {
+    if (d.rookie_year > LATEST_SEASON_WITH_DATA) continue;
     if (filterPos && filterPos.length > 0 && !filterPos.includes(d.pos)) continue;
     if (filterRounds && filterRounds.length > 0 && !filterRounds.includes(d.rookie_round)) continue;
     const key = groupBy === "pos" ? d.pos : `Round ${d.rookie_round}`;
@@ -242,8 +247,9 @@ export function computePlayerSummaries(
     const isStarter = seasons.some((s) => s.games >= minGames && s.pos_rank <= 24);
     const isFlex = seasons.some((s) => s.games >= minGames && s.pos_rank <= 36);
 
-    let hitType: "elite" | "starter" | "flex" | "bust" = "bust";
-    if (isElite) hitType = "elite";
+    let hitType: "elite" | "starter" | "flex" | "bust" | "too_early" = "bust";
+    if (d.rookie_year > LATEST_SEASON_WITH_DATA) hitType = "too_early";
+    else if (isElite) hitType = "elite";
     else if (isStarter) hitType = "starter";
     else if (isFlex) hitType = "flex";
 

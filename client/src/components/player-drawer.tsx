@@ -7,6 +7,15 @@ const hitTypeColors: Record<string, string> = {
   starter: "bg-[#0b3a7a]/10 text-[#0b3a7a] dark:bg-[#0b3a7a]/30 dark:text-[#5a9be6]",
   flex: "bg-[#0b3a7a]/5 text-[#0b3a7a]/70 dark:bg-[#1a3a6a]/30 dark:text-[#8ab4e8]",
   bust: "bg-[#7a3a3a]/10 text-[#7a3a3a] dark:bg-[#7a3a3a]/20 dark:text-[#d4837a]",
+  too_early: "bg-slate-100 text-slate-500 dark:bg-slate-800/40 dark:text-slate-400",
+};
+
+const hitTypeLabels: Record<string, string> = {
+  elite: "Elite",
+  starter: "Starter",
+  flex: "Flex",
+  bust: "Bust",
+  too_early: "Too Early",
 };
 
 interface PlayerDrawerProps {
@@ -60,7 +69,7 @@ export function PlayerDrawer({ player, onClose }: PlayerDrawerProps) {
             <div className="bg-muted/30 dark:bg-muted/20 rounded-md p-3 text-center">
               <div className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Status</div>
               <Badge variant="secondary" className={`mt-1 text-xs ${hitTypeColors[player.hit_type]}`}>
-                {player.hit_type.charAt(0).toUpperCase() + player.hit_type.slice(1)}
+                {hitTypeLabels[player.hit_type] || player.hit_type}
               </Badge>
             </div>
             <div className="bg-muted/30 dark:bg-muted/20 rounded-md p-3 text-center">
