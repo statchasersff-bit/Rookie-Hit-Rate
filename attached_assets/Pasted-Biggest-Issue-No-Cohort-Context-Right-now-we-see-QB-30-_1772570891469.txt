@@ -1,0 +1,201 @@
+Biggest Issue: No Cohort Context
+
+Right now we see:
+
+QB ~30%
+
+RB ~16%
+
+WR ~16%
+
+TE ~30%
+
+But we don’t see:
+
+N per group
+
+Sample size
+
+Draft round distribution
+
+Without N, users misinterpret.
+
+Fix:
+
+Add under legend:
+
+QB (N=74)
+RB (N=126)
+WR (N=184)
+TE (N=41)
+
+Or show N in tooltip.
+
+This increases credibility immediately.
+
+📈 2. The Curves Need Visual Hierarchy
+
+Right now:
+All lines have similar weight.
+
+Upgrade:
+
+Bold the selected cohort.
+
+Dim non-selected cohorts.
+
+Add small circular markers at each year.
+
+Also:
+
+Use position colors consistently:
+
+QB = navy
+
+RB = green
+
+WR = purple
+
+TE = gold accent
+
+Right now the colors are too subtle.
+
+🧠 3. Add “Delta After Year X” Insight
+
+You already mention plateau in analysis.
+
+Make it visual.
+
+Add a subtle vertical line at Year 3.
+
+Then display:
+
+% Additional Hits After Year 3:
+QB: +2.1%
+RB: +0.4%
+WR: +3.2%
+TE: +1.7%
+
+That’s actionable dynasty advice.
+
+⚠️ 4. Incomplete Cohort Handling
+
+Recent classes (2023–2025) distort late-year curves.
+
+You must:
+
+Either:
+
+Freeze analysis to classes with at least 4 seasons played
+
+Or:
+
+Shade future years lightly for incomplete cohorts
+
+Otherwise Year 6 is artificially flat.
+
+This is important.
+
+🏆 5. Make It More Dynasty-Strategic
+
+Right now it answers:
+
+“When do players break out?”
+
+Add toggle:
+
+Outcome Mode:
+
+Elite (Top 12)
+
+Starter (Top 24)
+
+Because breakout timing differs dramatically.
+
+This doubles value instantly.
+
+📊 6. Add Round Grouping Toggle (Power Feature)
+
+You have Group By Position / Round.
+
+But do this:
+
+When Group By Round is selected:
+Allow:
+
+Round 1 vs Round 2 vs Round 3+
+
+Or Early 1st vs Late 1st vs 2nd
+
+This becomes extremely powerful for draft strategy.
+
+Example insight:
+Round 2 WRs break out later than Round 1 WRs.
+
+That’s gold.
+
+🧩 7. The Chart Needs Slight Tension
+
+The curves are very smooth and gentle.
+
+Add:
+
+Slightly thicker stroke.
+
+More visible markers.
+
+Light background grid.
+
+Right now it looks slightly washed.
+
+🧠 8. Upgrade The Analysis Cards
+
+Current:
+Good but descriptive.
+
+Make them sharper and stat-forward.
+
+Instead of:
+
+TE reaches the highest eventual hit rate of 30.6%.
+
+Use:
+TE leads long-term ceiling (30.6%)
+
+Then:
+RB caps at just 15.9%.
+
+Sharper. More authoritative.
+
+🔥 9. Add “Patience Index”
+
+This would be uniquely StatChasers.
+
+Define:
+
+Patience Index = % of hits that occur after Year 1
+
+Higher = slower developers.
+
+Display:
+
+QB: 72
+RB: 58
+WR: 81
+TE: 89
+
+This becomes extremely sticky.
+
+📌 10. One Killer Upgrade
+
+Add a “Roster Decision Aid” Box:
+
+If player hasn’t hit by:
+
+End of Year 1 → historical odds remaining: X%
+
+End of Year 2 → odds drop to: Y%
+
+That makes this tab actionable.
+
+Right now it’s descriptive. Make it prescriptive.

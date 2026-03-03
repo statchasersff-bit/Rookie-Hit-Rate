@@ -1,8 +1,15 @@
 import { useMemo } from "react";
 import { useData } from "@/lib/data-context";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Cell } from "recharts";
-import type { CohortSummary } from "@/lib/types";
+import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Cell, LabelList, Tooltip as RechartsTooltip } from "recharts";
+import type { CohortSummary, Pos } from "@/lib/types";
+
+const posColors: Record<Pos, string> = {
+  QB: "bg-blue-600 text-white dark:bg-blue-500",
+  RB: "bg-emerald-600 text-white dark:bg-emerald-500",
+  WR: "bg-purple-600 text-white dark:bg-purple-500",
+  TE: "bg-[#d4af37] text-[#0a1628] dark:bg-[#d4af37]",
+};
 
 export function PickLensCard() {
   const { cohorts, hoveredCell, selectedCell, filters } = useData();
@@ -36,9 +43,14 @@ export function PickLensCard() {
     <Card className="border-[#0b3a7a]/10 dark:border-[#d4af37]/10 bg-card" data-testid="pick-lens-card">
       <CardHeader className="pb-2 px-4 pt-4">
         <div>
-          <h3 className="text-sm font-bold text-[#0b3a7a] dark:text-[#d4af37]">
-            {cohort.pos} Round {cohort.rookie_round}
-          </h3>
+          <div className="flex items-center gap-2">
+            <span className={`inline-flex items-center justify-center px-2 py-0.5 text-[10px] font-bold rounded-full ${posColors[cohort.pos as Pos] || ""}`}>
+              {cohort.pos}
+            </span>
+            <h3 className="text-sm font-bold text-[#0b3a7a] dark:text-[#d4af37]">
+              Round {cohort.rookie_round}
+            </h3>
+          </div>
           <div className="w-8 h-[2px] bg-gradient-to-r from-[#d4af37] to-[#d4af37]/50 mt-0.5 rounded-full" />
           <p className="text-[10px] text-muted-foreground mt-0.5">
             {filters.yearStart}–{filters.yearEnd} ({cohort.total} players)
@@ -58,15 +70,17 @@ export function PickLensCard() {
           <h4 className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold mb-2">
             {outcomeName} Hit by Year
           </h4>
-          <div className="h-24">
+          <div className="h-28">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={hitByYearData} barCategoryGap="20%">
+              <BarChart data={hitByYearData} barCategoryGap="15%">
                 <XAxis dataKey="name" tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
                 <YAxis tick={{ fontSize: 10 }} axisLine={false} tickLine={false} tickFormatter={(v: number) => `${(v * 100).toFixed(0)}%`} domain={[0, 1]} />
-                <Bar dataKey="value" radius={[4, 4, 0, 0]}>
+                <RechartsTooltip formatter={(v: number) => `${(v * 100).toFixed(1)}%`} labelFormatter={(l: string) => l} />
+                <Bar dataKey="value" radius={[4, 4, 0, 0]} barSize={28}>
                   {hitByYearData.map((entry, idx) => (
                     <Cell key={idx} fill={entry.fill} />
                   ))}
+                  <LabelList dataKey="value" position="top" formatter={(v: number) => `${(v * 100).toFixed(0)}%`} style={{ fontSize: 9, fontWeight: 700, fill: "var(--foreground)" }} />
                 </Bar>
               </BarChart>
             </ResponsiveContainer>

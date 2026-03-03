@@ -1,0 +1,126 @@
+Immediate Visual Improvements (High Impact)
+A) Heatmap Needs Stronger Visual Hierarchy
+
+Right now:
+
+The percentages blend together.
+
+The difference between 58% and 33% isn’t visually powerful.
+
+Upgrade:
+
+Use stronger color scaling.
+
+Instead of light gray → medium gray:
+
+0–15% → very light slate
+
+15–30% → soft navy tint
+
+30–50% → medium navy
+
+50–70% → deep navy
+
+70%+ → navy with subtle gold glow border
+
+Make 70%+ cells feel like “premium hits.”
+
+Your TE Round 1 (89%) should visually dominate the board.
+
+B) Increase Cell Density Slightly
+
+Right now cells are spacious but slightly “empty.”
+
+Add under the N:
+
+Small subtext:
+
+Elite: 8/9
+
+Bust: 1/9
+
+That makes it feel data-rich.
+
+🧠 2. Add Sample-Size Awareness
+
+You show N (good), but users will misinterpret small samples.
+
+Add subtle:
+
+A small confidence dot (green/yellow/red)
+
+Or lighten opacity if N < 10
+
+Tooltip showing 95% CI width
+
+This boosts credibility instantly.
+
+📊 3. Breakout Mini Chart (Right Panel)
+
+The “Elite Hit by Year” bars are good but:
+
+Upgrade:
+
+Make bars thicker.
+
+Add % labels above each bar.
+
+Add hover showing N.
+
+Right now it looks like a placeholder chart — this should feel intentional.
+
+Also:
+Add cumulative line option:
+“Hit by Year 1 / 2 / 3+”
+
+That’s statistically powerful.
+
+🏆 4. Analysis Cards – Great Concept, Slight Polish Needed
+
+These are good but feel slightly flat.
+
+Improvements:
+A) Add subtle category icons (consistent style)
+
+📈 Best Cohort
+
+⚠️ Toughest Cohort
+
+🧨 High Bust Zones
+
+⏳ Slow Developers
+
+Keep icon styling consistent (stroke icon, not emoji).
+
+B) Increase contrast in the card headers
+
+The colored borders are subtle. Make the header text match border color slightly.
+
+C) Add one stat callout bolded
+
+Example:
+
+Instead of:
+
+TE Round 1 has the highest hit rate at 88.9% (8/9 players).
+
+Make:
+
+88.9% Elite Hit Rate
+TE Round 1 (8/9 players)
+
+More scannable.
+
+🏗 5. Add Micro-Interaction To Heatmap
+
+When user hovers a cell:
+
+Slight scale (1.02)
+
+Soft shadow
+
+Side panel updates smoothly
+
+Right now it feels static.
+
+Make it feel alive.
