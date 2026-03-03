@@ -43,7 +43,7 @@ export function TrendsChart() {
   }, [trendData, showMovingAvg]);
 
   const positions: Pos[] = ["QB", "RB", "WR", "TE"];
-  const rounds = [1, 2, 3, 4, 5, 6, 7];
+  const rounds = [1, 2, 3, 4, 5];
 
   return (
     <div className="space-y-4" data-testid="trends-chart">

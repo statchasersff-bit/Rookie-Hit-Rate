@@ -5,7 +5,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import type { Pos, CohortSummary } from "@/lib/types";
 
 const allPositions: Pos[] = ["QB", "RB", "WR", "TE"];
-const allRounds = [1, 2, 3, 4, 5, 6, 7];
+const allRounds = [1, 2, 3, 4, 5];
 
 function getHeatColor(rate: number, isDark: boolean): string {
   if (rate >= 0.7) return isDark ? "bg-[#d4af37]/30 text-[#d4af37]" : "bg-[#d4af37]/20 text-[#0b3a7a]";

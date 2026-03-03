@@ -7,7 +7,7 @@ import { Slider } from "@/components/ui/slider";
 import type { Pos, Format, Scoring, Outcome } from "@/lib/types";
 
 const positions: Pos[] = ["QB", "RB", "WR", "TE"];
-const rounds = [1, 2, 3, 4, 5, 6, 7];
+const rounds = [1, 2, 3, 4, 5];
 const formats: { value: Format; label: string }[] = [
   { value: "1qb", label: "1QB" },
   { value: "sf", label: "Superflex" },
