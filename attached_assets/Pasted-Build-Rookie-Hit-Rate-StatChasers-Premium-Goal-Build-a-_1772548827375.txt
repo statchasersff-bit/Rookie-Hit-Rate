@@ -1,0 +1,376 @@
+Build “Rookie Hit Rate” (StatChasers Premium)
+
+Goal: Build a StatChasers-branded web tool that analyzes the last 10+ years of dynasty rookie drafts and shows hit rates by position × rookie draft round × year, where a “hit” means a player has recorded at least one Top-12 / Top-24 / Top-36 fantasy season at their position since entering the NFL. Also calculate time-to-breakout (how many seasons after entering the league their first hit occurred). Provide filters for format (1QB/SF) + scoring (PPR/HPPR/STD) and outcome definitions (Elite/Starter/Flex/Bust). The UX should feel premium and match StatChasers branding.
+
+Brand Tokens (must match StatChasers)
+
+Primary: #0b3a7a (navy)
+
+Accent: #d4af37 (gold)
+
+Background: white in light mode, near-black navy in dark mode
+
+Typography: clean sans (system ok), bold headlines
+
+Signature motif: gold underline under section titles
+
+Cards: rounded corners, soft shadow, subtle gradient border on hover
+
+1) App Structure
+
+Create a Vite + React + TypeScript app.
+
+Pages:
+
+Overview (default)
+
+Trends
+
+Cohorts
+
+Player Explorer
+
+Top navigation (sticky):
+
+Logo left (“StatChasers”)
+
+Tabs center
+
+Right side: Theme toggle + “Export CSV” button
+
+Layout:
+
+Max width: 1200–1280px
+
+Sticky filter bar under the navbar
+
+2) UX/UI Requirements (Premium)
+A) Sticky Filter Bar (core interaction)
+
+Filters (left to right):
+
+Seasons Range: 2015–2025 (slider or dropdowns)
+
+Format: 1QB | Superflex
+
+Scoring: PPR | Half | Standard
+
+Outcome Threshold: Elite (Top12) | Starter (Top24) | Flex (Top36 RB/WR) | Custom
+
+Position: All | QB | RB | WR | TE
+
+Round: All | 1 | 2 | 3 | 4 | 5 | 6 | 7
+
+“Minimum Games” (default 8) for a season to count as a hit
+
+Toggle: “Show confidence” (on by default)
+
+Filter bar should:
+
+Be sticky
+
+Collapse nicely on mobile (accordion)
+
+Show active filter pills under it with an “X” to remove each
+
+B) Primary Visualization: Heatmap Table
+
+Main panel shows:
+
+Rows = Position (QB/RB/WR/TE) or selectable
+
+Columns = Rounds 1–7
+
+Cell value = Hit Rate %
+
+Cell subtext = N (sample size)
+
+Hover tooltip:
+
+Exact % (Elite/Starter/Flex)
+
+N
+
+Median breakout year
+
+Hit-by-year breakdown (Year 1/2/3+)
+
+Color:
+
+Use StatChasers blue scale with gold accent for “best cells”
+
+In dark mode, invert but keep legible
+
+C) “Pick Lens” Card (right side)
+
+A sticky side card that updates based on hover/selection:
+
+“Cohort: WR Round 2 (2015–2025)”
+
+Elite hit rate, Starter hit rate, Bust rate
+
+Median breakout year
+
+“Hit by Year” mini bar (Year1/Year2/Year3+)
+
+D) Trends Tab
+
+Line chart options:
+
+Choose position + round + outcome
+
+Show hit rate by class year
+
+Add “3-year moving average” toggle
+
+E) Cohorts Tab (time-to-breakout)
+
+A survival-style chart:
+
+X axis: Years after entering league (0–6)
+
+Y axis: % who have achieved first hit
+
+Separate lines by position or round
+
+F) Player Explorer
+
+Table of players with:
+
+Name, Pos, Draft year, Rookie round/pick, Best finish (e.g. WR7 2022), Breakout year (2), Hit type (Elite/Starter/Flex/Bust)
+
+Search, filters, and row click to open a player detail drawer
+
+Player Drawer:
+
+Basic info + yearly finishes list
+
+“First hit season” highlighted in gold
+
+G) Export
+
+Export current cohort results to CSV:
+
+cohort inputs
+
+hit rates
+
+N
+
+breakout metrics
+
+per-year hit rates
+
+3) Data Model + Inputs (Local-first, upload-ready)
+
+Build with local datasets first (CSV/JSON in /data/), and include an “Upload Data” modal later.
+
+Required datasets
+
+rookie_drafts.csv
+Columns:
+
+player_id (string, consistent key)
+
+player_name
+
+pos (QB/RB/WR/TE)
+
+rookie_year (NFL entry year)
+
+dynasty_year (draft year)
+
+rookie_round (1–7)
+
+rookie_pick (optional)
+
+nfl_draft_round (optional)
+
+nfl_draft_pick (optional)
+
+season_finishes.csv
+Columns:
+
+player_id
+
+season (year)
+
+pos
+
+games (int)
+
+fantasy_points_ppr
+
+fantasy_points_hppr
+
+fantasy_points_std
+
+Replit AI must compute positional ranks per season/format from these points.
+
+Derived table
+
+Compute:
+season_pos_rank_{format} per season per position.
+
+4) Core Definitions + Computations
+A) “Hit” logic
+
+A player is a “hit” if they have at least one season after rookie year where:
+
+Games >= min_games
+
+Position rank in that season <= threshold:
+
+Elite: <= 12
+
+Starter: <= 24
+
+Flex: <= 36 (RB/WR only; for QB/TE treat as <=24 unless user selects otherwise)
+
+Bust:
+
+No seasons meeting chosen threshold within max_years_considered (default 6)
+
+B) Breakout year
+
+For each player:
+
+Find first season (chronologically) where they qualify as a hit.
+
+Breakout time = first_hit_season - rookie_year + 1
+Example: rookie year 2021, first hit 2023 → breakout time = 3
+
+C) Cohort aggregation
+
+Group by:
+
+position
+
+rookie_round
+
+dynasty_year (optional)
+Within group compute:
+
+hit_rate = hits / total
+
+bust_rate = busts / total
+
+starter_rate, elite_rate etc.
+
+median_breakout among hitters
+
+hit_by_year: % who hit by year 1, year 2, year 3+
+
+D) Confidence indicator
+
+Compute Wilson interval (or simple binomial CI) for hit_rate and expose it.
+UI:
+
+If interval width is large, show a “low confidence” icon.
+
+5) Backend/API (Simple but clean)
+
+Use a lightweight Node/Express server OR just client-side computation if datasets are small.
+
+Preferred:
+
+Put computation in a reusable module src/lib/metrics.ts
+
+Provide endpoints later if needed
+
+Structure:
+
+src/lib/loaders.ts loads CSV → typed arrays
+
+src/lib/ranks.ts computes seasonal positional ranks by format
+
+src/lib/cohort.ts computes cohort summary objects
+
+Types:
+
+type Format = "ppr" | "hppr" | "std";
+type Pos = "QB" | "RB" | "WR" | "TE";
+type Outcome = "elite" | "starter" | "flex";
+6) UI Component Spec (StatChasers look)
+
+Components:
+
+ScHeader (title + gold underline)
+
+ScPills (active filter pills)
+
+ScCard (rounded, shadow, hover border)
+
+HeatmapTable
+
+PickLensCard
+
+TrendsChart
+
+CohortSurvivalChart
+
+PlayerTable + Drawer
+
+Gold underline:
+
+48–72px width line under titles
+
+3–4px height
+
+gradient gold look is fine
+
+Micro-interactions:
+
+Heatmap cells animate on hover (scale 1.02)
+
+Tooltip fades in
+
+Side card updates smoothly
+
+7) Default Views (what user sees on load)
+
+Default:
+
+Years: last 10 completed classes
+
+Format: Superflex
+
+Scoring: PPR
+
+Outcome: Elite (Top12)
+
+Min games: 8
+
+Confidence: on
+
+Home view:
+
+Header: “Rookie Hit Rates (Last 10 Years)”
+
+Subhead: “By position × round + time-to-breakout.”
+
+Heatmap center + Pick Lens right
+
+8) QA Checklist (Replit must satisfy)
+
+Filters update heatmap instantly
+
+Tooltip shows N + breakout median
+
+Player Explorer is searchable and consistent
+
+Export CSV works
+
+Dark/light mode looks premium
+
+Mobile filter bar collapses and tool remains usable
+
+Implementation Notes to Replit AI (important)
+
+Do NOT overcomplicate with a database initially.
+
+Start with CSV in /public/data/.
+
+Optimize performance with memoization (useMemo) and precomputed rank maps.
+
+Ensure all computations are deterministic and testable.
