@@ -5,9 +5,9 @@ import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Cell, LabelList, Tool
 import type { CohortSummary, Pos } from "@/lib/types";
 
 const posColors: Record<Pos, string> = {
-  QB: "bg-blue-600 text-white dark:bg-blue-500",
+  QB: "bg-red-600 text-white dark:bg-red-500",
   RB: "bg-emerald-600 text-white dark:bg-emerald-500",
-  WR: "bg-purple-600 text-white dark:bg-purple-500",
+  WR: "bg-blue-600 text-white dark:bg-blue-500",
   TE: "bg-[#d4af37] text-[#0a1628] dark:bg-[#d4af37]",
 };
 

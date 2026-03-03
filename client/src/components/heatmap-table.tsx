@@ -8,9 +8,9 @@ const allPositions: Pos[] = ["QB", "RB", "WR", "TE"];
 const allRounds = [1, 2, 3, 4, 5];
 
 const posColors: Record<Pos, { bg: string; text: string; darkBg: string; darkText: string }> = {
-  QB: { bg: "bg-blue-600", text: "text-white", darkBg: "dark:bg-blue-500", darkText: "dark:text-white" },
+  QB: { bg: "bg-red-600", text: "text-white", darkBg: "dark:bg-red-500", darkText: "dark:text-white" },
   RB: { bg: "bg-emerald-600", text: "text-white", darkBg: "dark:bg-emerald-500", darkText: "dark:text-white" },
-  WR: { bg: "bg-purple-600", text: "text-white", darkBg: "dark:bg-purple-500", darkText: "dark:text-white" },
+  WR: { bg: "bg-blue-600", text: "text-white", darkBg: "dark:bg-blue-500", darkText: "dark:text-white" },
   TE: { bg: "bg-[#d4af37]", text: "text-[#0a1628]", darkBg: "dark:bg-[#d4af37]", darkText: "dark:text-[#0a1628]" },
 };
 

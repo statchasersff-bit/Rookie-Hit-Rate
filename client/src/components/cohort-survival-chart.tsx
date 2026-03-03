@@ -9,9 +9,9 @@ import { Zap, Clock, TrendingUp, ArrowUpRight, Award, Layers, Sparkles, Timer, S
 import type { Pos } from "@/lib/types";
 
 const posGroupColors: Record<string, string> = {
-  QB: "#2563eb",
+  QB: "#dc2626",
   RB: "#059669",
-  WR: "#9333ea",
+  WR: "#2563eb",
   TE: "#d4af37",
 };
 
@@ -24,9 +24,9 @@ const roundGroupColors: Record<string, string> = {
 };
 
 const posPillColors: Record<string, string> = {
-  QB: "bg-blue-600 text-white dark:bg-blue-500",
+  QB: "bg-red-600 text-white dark:bg-red-500",
   RB: "bg-emerald-600 text-white dark:bg-emerald-500",
-  WR: "bg-purple-600 text-white dark:bg-purple-500",
+  WR: "bg-blue-600 text-white dark:bg-blue-500",
   TE: "bg-[#d4af37] text-[#0a1628] dark:bg-[#d4af37]",
 };
 
