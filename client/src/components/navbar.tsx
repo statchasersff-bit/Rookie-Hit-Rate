@@ -1,8 +1,6 @@
-import { Sun, Moon, Download } from "lucide-react";
+import { Sun, Moon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useTheme } from "./theme-provider";
-import { useData } from "@/lib/data-context";
-import { exportCohortCSV, downloadCSV } from "@/lib/export";
 
 interface NavbarProps {
   activeTab: string;
@@ -18,12 +16,6 @@ const tabs = [
 
 export function Navbar({ activeTab, onTabChange }: NavbarProps) {
   const { theme, toggleTheme } = useTheme();
-  const { cohorts, filters } = useData();
-
-  const handleExport = () => {
-    const csv = exportCohortCSV(cohorts, filters);
-    downloadCSV(csv, `statchasers-rookie-hitrates-${filters.yearStart}-${filters.yearEnd}.csv`);
-  };
 
   return (
     <header className="sticky top-0 z-50 border-b border-[#0b3a7a]/10 dark:border-[#d4af37]/10 bg-white/95 dark:bg-[#0a1628]/95 backdrop-blur-md" data-testid="navbar">
@@ -65,15 +57,6 @@ export function Navbar({ activeTab, onTabChange }: NavbarProps) {
             className="text-[#0b3a7a] dark:text-[#d4af37]"
           >
             {theme === "light" ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4" />}
-          </Button>
-          <Button
-            size="sm"
-            onClick={handleExport}
-            data-testid="button-export"
-            className="bg-[#0b3a7a] text-white dark:bg-[#d4af37] dark:text-[#0a1628] text-xs"
-          >
-            <Download className="w-3.5 h-3.5 mr-1" />
-            <span className="hidden sm:inline">Export CSV</span>
           </Button>
         </div>
       </div>
