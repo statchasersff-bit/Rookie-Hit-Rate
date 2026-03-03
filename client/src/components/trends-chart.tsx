@@ -13,14 +13,14 @@ const posColors: Record<Pos, string> = {
 };
 
 export function TrendsChart() {
-  const { drafts, rankMap, filters } = useData();
+  const { filteredDrafts, rankMap, filters } = useData();
   const [trendPos, setTrendPos] = useState<Pos>("RB");
   const [trendRound, setTrendRound] = useState(1);
   const [showMovingAvg, setShowMovingAvg] = useState(false);
 
   const trendData = useMemo(
-    () => computeTrends(drafts, rankMap, trendPos, trendRound, filters.outcome, filters.minGames),
-    [drafts, rankMap, trendPos, trendRound, filters.outcome, filters.minGames]
+    () => computeTrends(filteredDrafts, rankMap, trendPos, trendRound, filters.outcome, filters.minGames),
+    [filteredDrafts, rankMap, trendPos, trendRound, filters.outcome, filters.minGames]
   );
 
   const chartData = useMemo(() => {
@@ -43,7 +43,7 @@ export function TrendsChart() {
   }, [trendData, showMovingAvg]);
 
   const positions: Pos[] = ["QB", "RB", "WR", "TE"];
-  const rounds = [1, 2, 3, 4];
+  const rounds = [1, 2, 3, 4, 5, 6, 7];
 
   return (
     <div className="space-y-4" data-testid="trends-chart">

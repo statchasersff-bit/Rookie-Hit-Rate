@@ -35,7 +35,7 @@ export function computeCohorts(
   filters: Filters
 ): CohortSummary[] {
   const filtered = drafts.filter((d) => {
-    if (d.dynasty_year < filters.yearStart || d.dynasty_year > filters.yearEnd) return false;
+    if (d.rookie_year < filters.yearStart || d.rookie_year > filters.yearEnd) return false;
     if (filters.positions.length > 0 && !filters.positions.includes(d.pos)) return false;
     if (filters.rounds.length > 0 && !filters.rounds.includes(d.rookie_round)) return false;
     return true;
@@ -61,7 +61,7 @@ export function computeCohorts(
     const years = new Set<number>();
 
     for (const draft of group) {
-      years.add(draft.dynasty_year);
+      years.add(draft.rookie_year);
       const seasons = rankMap.get(draft.player_id) || [];
       const validSeasons = seasons.filter((s) => s.games >= filters.minGames && s.season >= draft.rookie_year);
 
@@ -151,8 +151,8 @@ export function computeTrends(
   const yearGroups = new Map<number, RookieDraft[]>();
   for (const d of drafts) {
     if (d.pos !== pos || d.rookie_round !== round) continue;
-    if (!yearGroups.has(d.dynasty_year)) yearGroups.set(d.dynasty_year, []);
-    yearGroups.get(d.dynasty_year)!.push(d);
+    if (!yearGroups.has(d.rookie_year)) yearGroups.set(d.rookie_year, []);
+    yearGroups.get(d.rookie_year)!.push(d);
   }
 
   const results: { year: number; hitRate: number; n: number }[] = [];
@@ -254,6 +254,10 @@ export function computePlayerSummaries(
       rookie_year: d.rookie_year,
       rookie_round: d.rookie_round,
       rookie_pick: d.rookie_pick,
+      current_nfl_team: d.current_nfl_team,
+      current_age: d.current_age,
+      height: d.height,
+      weight: d.weight,
       best_finish: bestRank <= 999 ? `${d.pos}${bestRank} (${bestYear})` : "N/A",
       best_finish_year: bestYear,
       breakout_year: firstHitSeason !== null ? firstHitSeason - d.rookie_year + 1 : null,

@@ -1,32 +1,49 @@
-import type { RookieDraft, SeasonFinish, Pos } from "./types";
+import type { RookieDraft, SeasonFinish, Pos, Format, Scoring } from "./types";
 
-function parseCSV<T>(text: string, transform: (row: Record<string, string>) => T): T[] {
+const validPositions = new Set(["QB", "RB", "WR", "TE"]);
+
+function parseCSV<T>(text: string, transform: (row: Record<string, string>) => T | null): T[] {
   const lines = text.trim().split("\n");
   const headers = lines[0].split(",");
-  return lines.slice(1).map((line) => {
-    const values = line.split(",");
+  const results: T[] = [];
+  for (let i = 1; i < lines.length; i++) {
+    const values = lines[i].split(",");
     const obj: Record<string, string> = {};
-    headers.forEach((h, i) => {
-      obj[h.trim()] = (values[i] || "").trim();
+    headers.forEach((h, idx) => {
+      obj[h.trim()] = (values[idx] || "").trim();
     });
-    return transform(obj);
-  });
+    const result = transform(obj);
+    if (result !== null) results.push(result);
+  }
+  return results;
 }
 
 export async function loadRookieDrafts(): Promise<RookieDraft[]> {
   const res = await fetch("/data/rookie_drafts.csv");
   const text = await res.text();
-  return parseCSV(text, (row) => ({
-    player_id: row.player_id,
-    player_name: row.player_name,
-    pos: row.pos as Pos,
-    rookie_year: parseInt(row.rookie_year),
-    dynasty_year: parseInt(row.dynasty_year),
-    rookie_round: parseInt(row.rookie_round),
-    rookie_pick: parseInt(row.rookie_pick),
-    nfl_draft_round: parseInt(row.nfl_draft_round),
-    nfl_draft_pick: parseInt(row.nfl_draft_pick),
-  }));
+  return parseCSV(text, (row) => {
+    const pos = row.pos as Pos;
+    if (!validPositions.has(pos)) return null;
+
+    const adpFormat = row.adp_format as Format;
+    const scoringFormat = row.scoring_format as Scoring;
+
+    return {
+      player_id: row.player_id,
+      player_name: row.player_name,
+      pos,
+      pos_rank: parseInt(row.pos_rank) || 0,
+      rookie_year: parseInt(row.rookie_year),
+      adp_format: adpFormat,
+      scoring_format: scoringFormat,
+      rookie_round: parseInt(row.rookie_round),
+      rookie_pick: parseInt(row.rookie_pick),
+      current_nfl_team: row.current_nfl_team || "FA",
+      current_age: row.current_age && row.current_age !== "" ? parseInt(row.current_age) : null,
+      height: row.height || "",
+      weight: row.weight && row.weight !== "" ? parseInt(row.weight) : null,
+    };
+  });
 }
 
 export async function loadSeasonFinishes(): Promise<SeasonFinish[]> {

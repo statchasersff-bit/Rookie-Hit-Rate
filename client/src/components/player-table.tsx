@@ -12,7 +12,7 @@ const hitTypeColors: Record<string, string> = {
   bust: "bg-[#7a3a3a]/10 text-[#7a3a3a] dark:bg-[#7a3a3a]/20 dark:text-[#d4837a]",
 };
 
-type SortField = "player_name" | "pos" | "rookie_year" | "rookie_round" | "hit_type" | "breakout_time";
+type SortField = "player_name" | "pos" | "current_nfl_team" | "rookie_year" | "rookie_round" | "hit_type" | "breakout_time";
 type SortDir = "asc" | "desc";
 
 export function PlayerTable() {
@@ -53,6 +53,7 @@ export function PlayerTable() {
       switch (sortField) {
         case "player_name": cmp = a.player_name.localeCompare(b.player_name); break;
         case "pos": cmp = a.pos.localeCompare(b.pos); break;
+        case "current_nfl_team": cmp = a.current_nfl_team.localeCompare(b.current_nfl_team); break;
         case "rookie_year": cmp = a.rookie_year - b.rookie_year; break;
         case "rookie_round": cmp = a.rookie_round - b.rookie_round || a.rookie_pick - b.rookie_pick; break;
         case "hit_type": {
@@ -130,6 +131,7 @@ export function PlayerTable() {
               {[
                 { field: "player_name" as SortField, label: "Player" },
                 { field: "pos" as SortField, label: "Pos" },
+                { field: "current_nfl_team" as SortField, label: "Team" },
                 { field: "rookie_year" as SortField, label: "Year" },
                 { field: "rookie_round" as SortField, label: "Pick" },
                 { field: "hit_type" as SortField, label: "Best Finish" },
@@ -159,6 +161,7 @@ export function PlayerTable() {
                 <td className="px-3 py-2">
                   <span className="text-xs font-medium">{player.pos}</span>
                 </td>
+                <td className="px-3 py-2 text-xs text-muted-foreground">{player.current_nfl_team}</td>
                 <td className="px-3 py-2 tabular-nums">{player.rookie_year}</td>
                 <td className="px-3 py-2 tabular-nums">{player.rookie_round}.{String(player.rookie_pick).padStart(2, "0")}</td>
                 <td className="px-3 py-2 text-xs">{player.best_finish}</td>

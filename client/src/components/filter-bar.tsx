@@ -14,8 +14,7 @@ const formats: { value: Format; label: string }[] = [
 ];
 const scorings: { value: Scoring; label: string }[] = [
   { value: "ppr", label: "PPR" },
-  { value: "hppr", label: "Half" },
-  { value: "std", label: "Standard" },
+  { value: "hppr", label: "Half PPR" },
 ];
 const outcomes: { value: Outcome; label: string }[] = [
   { value: "elite", label: "Elite (Top 12)" },
@@ -29,10 +28,10 @@ export function FilterBar() {
 
   const activePills: { label: string; onRemove: () => void }[] = [];
 
-  if (filters.yearStart !== 2015 || filters.yearEnd !== 2025) {
+  if (filters.yearStart !== 2017 || filters.yearEnd !== 2025) {
     activePills.push({
       label: `${filters.yearStart}–${filters.yearEnd}`,
-      onRemove: () => setFilters((f) => ({ ...f, yearStart: 2015, yearEnd: 2025 })),
+      onRemove: () => setFilters((f) => ({ ...f, yearStart: 2017, yearEnd: 2025 })),
     });
   }
   if (filters.format !== "sf") {
@@ -43,7 +42,7 @@ export function FilterBar() {
   }
   if (filters.scoring !== "ppr") {
     activePills.push({
-      label: filters.scoring === "hppr" ? "Half PPR" : "Standard",
+      label: "Half PPR",
       onRemove: () => setFilters((f) => ({ ...f, scoring: "ppr" })),
     });
   }
@@ -92,7 +91,7 @@ export function FilterBar() {
                 <span className="text-xs font-medium text-[#0b3a7a] dark:text-[#d4af37] w-8">{filters.yearStart}</span>
                 <Slider
                   data-testid="slider-years"
-                  min={2015}
+                  min={2017}
                   max={2025}
                   step={1}
                   value={[filters.yearStart, filters.yearEnd]}
@@ -193,7 +192,7 @@ export function FilterBar() {
             <div className="flex flex-col gap-1">
               <label className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Round</label>
               <div className="flex gap-1">
-                {rounds.slice(0, 5).map((r) => (
+                {rounds.map((r) => (
                   <button
                     key={r}
                     onClick={() =>

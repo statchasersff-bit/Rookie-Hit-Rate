@@ -9,13 +9,13 @@ const groupColors = [
 ];
 
 export function CohortSurvivalChart() {
-  const { drafts, rankMap, filters } = useData();
+  const { filteredDrafts, rankMap, filters } = useData();
   const [groupBy, setGroupBy] = useState<"pos" | "round">("pos");
 
   const survivalData = useMemo(
     () =>
       computeSurvival(
-        drafts,
+        filteredDrafts,
         rankMap,
         groupBy,
         filters.outcome,
@@ -23,7 +23,7 @@ export function CohortSurvivalChart() {
         filters.positions.length > 0 ? filters.positions : undefined,
         filters.rounds.length > 0 ? filters.rounds : undefined
       ),
-    [drafts, rankMap, groupBy, filters]
+    [filteredDrafts, rankMap, groupBy, filters]
   );
 
   const chartData = useMemo(() => {

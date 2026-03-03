@@ -6,6 +6,7 @@ import { computeCohorts, computePlayerSummaries } from "./cohort";
 
 interface DataContextType {
   drafts: RookieDraft[];
+  filteredDrafts: RookieDraft[];
   finishes: SeasonFinish[];
   rankedSeasons: RankedSeason[];
   rankMap: Map<string, RankedSeason[]>;
@@ -21,7 +22,7 @@ interface DataContextType {
 }
 
 const defaultFilters: Filters = {
-  yearStart: 2015,
+  yearStart: 2017,
   yearEnd: 2025,
   format: "sf",
   scoring: "ppr",
@@ -34,6 +35,7 @@ const defaultFilters: Filters = {
 
 const DataContext = createContext<DataContextType>({
   drafts: [],
+  filteredDrafts: [],
   finishes: [],
   rankedSeasons: [],
   rankMap: new Map(),
@@ -64,18 +66,23 @@ export function DataProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
+  const filteredDrafts = useMemo(() =>
+    drafts.filter(d => d.adp_format === filters.format && d.scoring_format === filters.scoring),
+    [drafts, filters.format, filters.scoring]
+  );
+
   const rankedSeasons = useMemo(() => computeRanks(finishes, filters.scoring), [finishes, filters.scoring]);
   const rankMap = useMemo(() => buildRankMap(rankedSeasons), [rankedSeasons]);
-  const cohorts = useMemo(() => computeCohorts(drafts, rankMap, filters), [drafts, rankMap, filters]);
+  const cohorts = useMemo(() => computeCohorts(filteredDrafts, rankMap, filters), [filteredDrafts, rankMap, filters]);
   const playerSummaries = useMemo(
-    () => computePlayerSummaries(drafts, rankMap, filters.outcome, filters.minGames),
-    [drafts, rankMap, filters.outcome, filters.minGames]
+    () => computePlayerSummaries(filteredDrafts, rankMap, filters.outcome, filters.minGames),
+    [filteredDrafts, rankMap, filters.outcome, filters.minGames]
   );
 
   return (
     <DataContext.Provider
       value={{
-        drafts, finishes, rankedSeasons, rankMap, cohorts, playerSummaries,
+        drafts, filteredDrafts, finishes, rankedSeasons, rankMap, cohorts, playerSummaries,
         filters, setFilters, hoveredCell, setHoveredCell,
         selectedCell, setSelectedCell, loading,
       }}

@@ -45,7 +45,20 @@ function slugify(name) {
 
 function normalizePlayerName(name) {
   let n = name.trim();
-  n = n.replace(/([a-z])([A-Z])/g, '$1 $2');
+  const knownFixes = {
+    'AshtonJeanty': 'Ashton Jeanty',
+    'MarvinHarrison Jr': 'Marvin Harrison Jr',
+    'MarvinHarrison Jr.': 'Marvin Harrison Jr',
+    'NajeeHarris': 'Najee Harris',
+    'ClydeEdwards-Helaire': 'Clyde Edwards-Helaire',
+    'JonathanTaylor': 'Jonathan Taylor',
+    'TrevorLawrence': 'Trevor Lawrence',
+    'CalebWilliams': 'Caleb Williams',
+  };
+  if (knownFixes[n]) return knownFixes[n];
+  if (/^[A-Z][a-z]+[A-Z]/.test(n) && !n.includes(' ') && !n.includes('-')) {
+    n = n.replace(/([a-z])([A-Z])/g, '$1 $2');
+  }
   n = n.replace(/\s+/g, ' ').trim();
   return n;
 }

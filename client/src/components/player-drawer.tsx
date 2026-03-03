@@ -31,10 +31,19 @@ export function PlayerDrawer({ player, onClose }: PlayerDrawerProps) {
               <div className="flex items-center gap-2 mt-1.5 text-sm">
                 <span className="font-medium">{player.pos}</span>
                 <span className="opacity-60">|</span>
+                <span className="opacity-80">{player.current_nfl_team}</span>
+                <span className="opacity-60">|</span>
                 <span className="opacity-80">Class of {player.rookie_year}</span>
                 <span className="opacity-60">|</span>
                 <span className="opacity-80">Rd {player.rookie_round}, Pick {player.rookie_pick}</span>
               </div>
+              {(player.height || player.weight || player.current_age) && (
+                <div className="flex items-center gap-2 mt-1 text-xs opacity-60">
+                  {player.current_age && <span>Age {player.current_age}</span>}
+                  {player.height && <span>{player.height}</span>}
+                  {player.weight && <span>{player.weight} lbs</span>}
+                </div>
+              )}
             </div>
             <button
               onClick={onClose}

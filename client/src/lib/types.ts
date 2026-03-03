@@ -7,12 +7,16 @@ export interface RookieDraft {
   player_id: string;
   player_name: string;
   pos: Pos;
+  pos_rank: number;
   rookie_year: number;
-  dynasty_year: number;
+  adp_format: Format;
+  scoring_format: Scoring;
   rookie_round: number;
   rookie_pick: number;
-  nfl_draft_round: number;
-  nfl_draft_pick: number;
+  current_nfl_team: string;
+  current_age: number | null;
+  height: string;
+  weight: number | null;
 }
 
 export interface SeasonFinish {
@@ -36,6 +40,10 @@ export interface PlayerSummary {
   rookie_year: number;
   rookie_round: number;
   rookie_pick: number;
+  current_nfl_team: string;
+  current_age: number | null;
+  height: string;
+  weight: number | null;
   best_finish: string;
   best_finish_year: number;
   breakout_year: number | null;
