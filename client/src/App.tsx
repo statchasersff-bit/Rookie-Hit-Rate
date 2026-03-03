@@ -12,6 +12,7 @@ import Trends from "@/pages/trends";
 import Cohorts from "@/pages/cohorts";
 import PlayerExplorer from "@/pages/player-explorer";
 import { Skeleton } from "@/components/ui/skeleton";
+import { ArrowRight } from "lucide-react";
 
 function AppContent() {
   const [activeTab, setActiveTab] = useState("overview");
@@ -41,6 +42,30 @@ function AppContent() {
           </>
         )}
       </main>
+
+      <section className="border-t border-[#0b3a7a]/10 dark:border-[#d4af37]/10 mt-8" data-testid="cta-section">
+        <div className="max-w-[1280px] mx-auto px-4 py-12 text-center">
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#d4af37]/10 dark:bg-[#d4af37]/15 text-[#d4af37] text-xs font-semibold mb-4">
+            #1 Ranked Fantasy Tool Suite
+          </div>
+          <h2 className="text-2xl sm:text-3xl font-bold text-[#0b3a7a] dark:text-white mb-2">
+            Explore More Fantasy Football Tools
+          </h2>
+          <p className="text-muted-foreground max-w-lg mx-auto mb-6">
+            Rookie Hit Rate is just one tool in the StatChasers Premium suite. Discover trade calculators, rankings, projections, and more to dominate your dynasty leagues.
+          </p>
+          <a
+            href="https://statchasers.com/fantasy-football-tools/"
+            target="_blank"
+            rel="noopener noreferrer"
+            data-testid="link-cta-tools"
+            className="inline-flex items-center gap-2 px-6 py-3 rounded-lg bg-[#d4af37] text-[#0a1628] font-bold text-sm hover:bg-[#c4a030] transition-colors shadow-lg shadow-[#d4af37]/20"
+          >
+            Explore All Tools
+            <ArrowRight className="w-4 h-4" />
+          </a>
+        </div>
+      </section>
     </div>
   );
 }
