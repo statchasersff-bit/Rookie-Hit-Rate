@@ -21,7 +21,7 @@ const hitTypeLabels: Record<string, string> = {
   too_early: "Too Early",
 };
 
-type SortField = "player_name" | "pos" | "current_nfl_team" | "rookie_year" | "rookie_round" | "hit_type" | "breakout_time";
+type SortField = "player_name" | "pos" | "current_nfl_team" | "rookie_year" | "rookie_round" | "best_finish" | "hit_type" | "breakout_time";
 type SortDir = "asc" | "desc";
 
 export function PlayerTable() {
@@ -57,7 +57,7 @@ export function PlayerTable() {
       result = result.filter((p) => p.player_name.toLowerCase().includes(s));
     }
 
-    result.sort((a, b) => {
+    return [...result].sort((a, b) => {
       let cmp = 0;
       switch (sortField) {
         case "player_name": cmp = a.player_name.localeCompare(b.player_name); break;
@@ -65,16 +65,15 @@ export function PlayerTable() {
         case "current_nfl_team": cmp = a.current_nfl_team.localeCompare(b.current_nfl_team); break;
         case "rookie_year": cmp = a.rookie_year - b.rookie_year; break;
         case "rookie_round": cmp = a.rookie_round - b.rookie_round || a.rookie_pick - b.rookie_pick; break;
+        case "best_finish": cmp = a.best_finish_year - b.best_finish_year; break;
         case "hit_type": {
           const order: Record<string, number> = { elite: 0, starter: 1, flex: 2, bust: 3, too_early: 4 };
-          cmp = order[a.hit_type] - order[b.hit_type]; break;
+          cmp = (order[a.hit_type] ?? 5) - (order[b.hit_type] ?? 5); break;
         }
         case "breakout_time": cmp = (a.breakout_time ?? 99) - (b.breakout_time ?? 99); break;
       }
       return sortDir === "asc" ? cmp : -cmp;
     });
-
-    return result;
   }, [playerSummaries, search, sortField, sortDir, filterPos, filters]);
 
   const SortIcon = ({ field }: { field: SortField }) => {
@@ -143,12 +142,12 @@ export function PlayerTable() {
                 { field: "current_nfl_team" as SortField, label: "Team" },
                 { field: "rookie_year" as SortField, label: "Year" },
                 { field: "rookie_round" as SortField, label: "Pick" },
-                { field: "hit_type" as SortField, label: "Best Finish" },
+                { field: "best_finish" as SortField, label: "Best Finish" },
                 { field: "breakout_time" as SortField, label: "Breakout" },
                 { field: "hit_type" as SortField, label: "Status" },
               ].map((col, i) => (
                 <th
-                  key={i}
+                  key={col.field + i}
                   className="px-3 py-2 text-left text-[10px] uppercase tracking-wider text-muted-foreground font-semibold cursor-pointer select-none"
                   onClick={() => handleSort(col.field)}
                 >
