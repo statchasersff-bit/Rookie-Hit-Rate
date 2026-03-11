@@ -44,8 +44,14 @@ export function PlayerTable() {
   const filtered = useMemo(() => {
     let result = playerSummaries;
 
-    if (filters.yearStart || filters.yearEnd) {
-      result = result.filter((p) => p.rookie_year >= filters.yearStart && p.rookie_year <= filters.yearEnd);
+    result = result.filter((p) => p.rookie_year >= filters.yearStart && p.rookie_year <= filters.yearEnd);
+
+    if (filters.positions.length > 0) {
+      result = result.filter((p) => filters.positions.includes(p.pos));
+    }
+
+    if (filters.rounds.length > 0) {
+      result = result.filter((p) => filters.rounds.includes(p.rookie_round));
     }
 
     if (filterPos) {
