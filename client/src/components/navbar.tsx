@@ -1,6 +1,8 @@
 import { Sun, Moon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useTheme } from "./theme-provider";
+import logoLight from "@assets/statchasers_logo_light_nobg.png";
+import logoDark from "@assets/statchasers_logo_dark_nobg.png";
 
 interface NavbarProps {
   activeTab: string;
@@ -21,15 +23,9 @@ export function Navbar({ activeTab, onTabChange }: NavbarProps) {
   return (
     <header className="sticky top-0 z-50 border-b border-[#0b3a7a]/10 dark:border-[#d4af37]/10 bg-white/95 dark:bg-[#0a1628]/95 backdrop-blur-md" data-testid="navbar">
       <div className="max-w-[1280px] mx-auto px-4 h-14 flex items-center justify-between gap-2">
-        <div className="flex items-center gap-2 shrink-0">
-          <div className="flex items-center gap-1.5">
-            <div className="w-7 h-7 rounded-md bg-[#0b3a7a] dark:bg-[#d4af37] flex items-center justify-center">
-              <span className="text-white dark:text-[#0a1628] font-bold text-xs">SC</span>
-            </div>
-            <span className="font-bold text-[#0b3a7a] dark:text-[#d4af37] text-lg tracking-tight hidden sm:block" data-testid="text-logo">
-              StatChasers
-            </span>
-          </div>
+        <div className="flex items-center shrink-0" data-testid="text-logo">
+          <img src={logoLight} alt="StatChasers" className="h-9 w-auto block dark:hidden" />
+          <img src={logoDark} alt="StatChasers" className="h-9 w-auto hidden dark:block" />
         </div>
 
         <nav className="flex items-center gap-1" data-testid="nav-tabs">
