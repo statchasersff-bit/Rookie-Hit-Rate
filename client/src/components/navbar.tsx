@@ -23,10 +23,10 @@ export function Navbar({ activeTab, onTabChange }: NavbarProps) {
   return (
     <header className="sticky top-0 z-50 border-b border-[#0b3a7a]/10 dark:border-[#d4af37]/10 bg-white/95 dark:bg-[#0a1628]/95 backdrop-blur-md" data-testid="navbar">
       <div className="max-w-[1280px] mx-auto px-4 h-14 flex items-center justify-between gap-2">
-        <div className="flex items-center shrink-0" data-testid="text-logo">
+        <a href="https://statchasers.com/" target="_blank" rel="noopener noreferrer" className="flex items-center shrink-0" data-testid="text-logo">
           <img src={logoLight} alt="StatChasers" className="h-9 w-auto block dark:hidden" />
           <img src={logoDark} alt="StatChasers" className="h-9 w-auto hidden dark:block" />
-        </div>
+        </a>
 
         <nav className="flex items-center gap-1" data-testid="nav-tabs">
           {tabs.map((tab) => (
