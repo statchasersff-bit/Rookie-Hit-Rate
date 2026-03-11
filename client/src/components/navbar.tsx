@@ -9,6 +9,7 @@ interface NavbarProps {
 
 const tabs = [
   { id: "overview", label: "Overview" },
+  { id: "pick-range", label: "Pick Range" },
   { id: "trends", label: "Trends" },
   { id: "cohorts", label: "Cohorts" },
   { id: "players", label: "Player Explorer" },

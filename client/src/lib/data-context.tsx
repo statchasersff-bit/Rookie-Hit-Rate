@@ -1,8 +1,8 @@
 import { createContext, useContext, useState, useEffect, useMemo, type ReactNode } from "react";
-import type { RookieDraft, SeasonFinish, RankedSeason, Filters, CohortSummary, PlayerSummary, Pos, HoveredCell } from "./types";
+import type { RookieDraft, SeasonFinish, RankedSeason, Filters, CohortSummary, PickRangeCohortSummary, PlayerSummary, Pos, HoveredCell } from "./types";
 import { loadRookieDrafts, loadSeasonFinishes } from "./loaders";
 import { computeRanks, buildRankMap } from "./ranks";
-import { computeCohorts, computePlayerSummaries } from "./cohort";
+import { computeCohorts, computePickRangeCohorts, computePlayerSummaries } from "./cohort";
 
 interface DataContextType {
   drafts: RookieDraft[];
@@ -11,6 +11,7 @@ interface DataContextType {
   rankedSeasons: RankedSeason[];
   rankMap: Map<string, RankedSeason[]>;
   cohorts: CohortSummary[];
+  pickRangeCohorts: PickRangeCohortSummary[];
   playerSummaries: PlayerSummary[];
   filters: Filters;
   setFilters: (f: Filters | ((prev: Filters) => Filters)) => void;
@@ -40,6 +41,7 @@ const DataContext = createContext<DataContextType>({
   rankedSeasons: [],
   rankMap: new Map(),
   cohorts: [],
+  pickRangeCohorts: [],
   playerSummaries: [],
   filters: defaultFilters,
   setFilters: () => {},
@@ -74,6 +76,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const rankedSeasons = useMemo(() => computeRanks(finishes, filters.scoring), [finishes, filters.scoring]);
   const rankMap = useMemo(() => buildRankMap(rankedSeasons), [rankedSeasons]);
   const cohorts = useMemo(() => computeCohorts(filteredDrafts, rankMap, filters), [filteredDrafts, rankMap, filters]);
+  const pickRangeCohorts = useMemo(() => computePickRangeCohorts(filteredDrafts, rankMap, filters), [filteredDrafts, rankMap, filters]);
   const playerSummaries = useMemo(
     () => computePlayerSummaries(filteredDrafts, rankMap, filters.outcome, filters.minGames),
     [filteredDrafts, rankMap, filters.outcome, filters.minGames]
@@ -82,7 +85,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
   return (
     <DataContext.Provider
       value={{
-        drafts, filteredDrafts, finishes, rankedSeasons, rankMap, cohorts, playerSummaries,
+        drafts, filteredDrafts, finishes, rankedSeasons, rankMap, cohorts, pickRangeCohorts, playerSummaries,
         filters, setFilters, hoveredCell, setHoveredCell,
         selectedCell, setSelectedCell, loading,
       }}

@@ -1,4 +1,4 @@
-import type { RookieDraft, RankedSeason, CohortSummary, Pos, Outcome, Filters } from "./types";
+import type { RookieDraft, RankedSeason, CohortSummary, PickRangeCohortSummary, Pos, Outcome, Filters } from "./types";
 
 export const LATEST_SEASON_WITH_DATA = 2025;
 
@@ -138,6 +138,134 @@ export function computeCohorts(
     const posOrder = ["QB", "RB", "WR", "TE"];
     const pi = posOrder.indexOf(a.pos) - posOrder.indexOf(b.pos);
     return pi !== 0 ? pi : a.rookie_round - b.rookie_round;
+  });
+}
+
+function getPickRange(pick: number): { start: number; end: number } {
+  if (pick <= 3) return { start: 1, end: 3 };
+  if (pick <= 6) return { start: 4, end: 6 };
+  if (pick <= 9) return { start: 7, end: 9 };
+  return { start: 10, end: 12 };
+}
+
+function pickRangeLabel(round: number, start: number, end: number): string {
+  const pad = (n: number) => n.toString().padStart(2, "0");
+  return `${round}.${pad(start)}-${round}.${pad(end)}`;
+}
+
+export function computePickRangeCohorts(
+  drafts: RookieDraft[],
+  rankMap: Map<string, RankedSeason[]>,
+  filters: Filters
+): PickRangeCohortSummary[] {
+  const filtered = drafts.filter((d) => {
+    if (d.rookie_year < filters.yearStart || d.rookie_year > filters.yearEnd) return false;
+    if (d.rookie_year > LATEST_SEASON_WITH_DATA) return false;
+    if (filters.positions.length > 0 && !filters.positions.includes(d.pos)) return false;
+    if (filters.rounds.length > 0 && !filters.rounds.includes(d.rookie_round)) return false;
+    return true;
+  });
+
+  const groups = new Map<string, RookieDraft[]>();
+  for (const d of filtered) {
+    const range = getPickRange(d.rookie_pick);
+    const key = `${d.pos}-${d.rookie_round}-${range.start}-${range.end}`;
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key)!.push(d);
+  }
+
+  const results: PickRangeCohortSummary[] = [];
+
+  for (const [key, group] of groups) {
+    const parts = key.split("-");
+    const pos = parts[0] as Pos;
+    const round = parseInt(parts[1]);
+    const pickStart = parseInt(parts[2]);
+    const pickEnd = parseInt(parts[3]);
+
+    let hits = 0, eliteHits = 0, starterHits = 0, flexHits = 0, bustCount = 0;
+    const breakouts: number[] = [];
+    let year1Hits = 0, year2Hits = 0, year3PlusHits = 0;
+    const years = new Set<number>();
+
+    for (const draft of group) {
+      years.add(draft.rookie_year);
+      const seasons = rankMap.get(draft.player_id) || [];
+      const validSeasons = seasons.filter((s) => s.games >= filters.minGames && s.season >= draft.rookie_year);
+
+      let isHit = false;
+      let firstHitSeason: number | null = null;
+      let bestRank = Infinity;
+
+      for (const s of validSeasons.sort((a, b) => a.season - b.season)) {
+        if (s.pos_rank < bestRank) bestRank = s.pos_rank;
+        const threshold = getThreshold(filters.outcome, pos);
+        if (!isHit && s.pos_rank <= threshold) {
+          isHit = true;
+          firstHitSeason = s.season;
+        }
+      }
+
+      const eliteT = getThreshold("elite", pos);
+      const starterT = getThreshold("starter", pos);
+      const flexT = getThreshold("flex", pos);
+
+      if (bestRank <= eliteT) eliteHits++;
+      else if (bestRank <= starterT) starterHits++;
+      else if (bestRank <= flexT) flexHits++;
+      else bustCount++;
+
+      if (isHit) {
+        hits++;
+        if (firstHitSeason !== null) {
+          const bt = firstHitSeason - draft.rookie_year + 1;
+          breakouts.push(bt);
+          if (bt === 1) year1Hits++;
+          else if (bt === 2) year2Hits++;
+          else year3PlusHits++;
+        }
+      }
+    }
+
+    const total = group.length;
+    const ci = wilsonCI(hits, total);
+
+    results.push({
+      pos,
+      rookie_round: round,
+      pickStart,
+      pickEnd,
+      rangeLabel: pickRangeLabel(round, pickStart, pickEnd),
+      dynasty_years: Array.from(years).sort(),
+      total,
+      hits,
+      hit_rate: total > 0 ? hits / total : 0,
+      elite_hits: eliteHits,
+      elite_rate: total > 0 ? eliteHits / total : 0,
+      starter_hits: starterHits,
+      starter_rate: total > 0 ? starterHits / total : 0,
+      flex_hits: flexHits,
+      flex_rate: total > 0 ? flexHits / total : 0,
+      bust_count: bustCount,
+      bust_rate: total > 0 ? bustCount / total : 0,
+      median_breakout: median(breakouts),
+      hit_by_year: {
+        year1: hits > 0 ? year1Hits / hits : 0,
+        year2: hits > 0 ? year2Hits / hits : 0,
+        year3_plus: hits > 0 ? year3PlusHits / hits : 0,
+      },
+      ci_lower: ci.lower,
+      ci_upper: ci.upper,
+      ci_width: ci.width,
+    });
+  }
+
+  return results.sort((a, b) => {
+    const posOrder = ["QB", "RB", "WR", "TE"];
+    const pi = posOrder.indexOf(a.pos) - posOrder.indexOf(b.pos);
+    if (pi !== 0) return pi;
+    if (a.rookie_round !== b.rookie_round) return a.rookie_round - b.rookie_round;
+    return a.pickStart - b.pickStart;
   });
 }
 

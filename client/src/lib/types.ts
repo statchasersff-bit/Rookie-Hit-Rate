@@ -77,6 +77,12 @@ export interface CohortSummary {
   ci_width: number;
 }
 
+export interface PickRangeCohortSummary extends CohortSummary {
+  pickStart: number;
+  pickEnd: number;
+  rangeLabel: string;
+}
+
 export interface Filters {
   yearStart: number;
   yearEnd: number;

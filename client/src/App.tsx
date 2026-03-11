@@ -10,6 +10,7 @@ import { FilterBar } from "@/components/filter-bar";
 import Overview from "@/pages/overview";
 import Trends from "@/pages/trends";
 import Cohorts from "@/pages/cohorts";
+import PickRange from "@/pages/pick-range";
 import PlayerExplorer from "@/pages/player-explorer";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ArrowRight } from "lucide-react";
@@ -36,6 +37,7 @@ function AppContent() {
         ) : (
           <>
             {activeTab === "overview" && <Overview />}
+            {activeTab === "pick-range" && <PickRange />}
             {activeTab === "trends" && <Trends />}
             {activeTab === "cohorts" && <Cohorts />}
             {activeTab === "players" && <PlayerExplorer />}
