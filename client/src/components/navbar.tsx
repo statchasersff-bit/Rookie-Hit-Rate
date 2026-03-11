@@ -9,10 +9,10 @@ interface NavbarProps {
 
 const tabs = [
   { id: "overview", label: "Overview" },
-  { id: "pick-range", label: "Pick Range" },
+  { id: "pick-range", label: "Picks" },
   { id: "trends", label: "Trends" },
   { id: "cohorts", label: "Cohorts" },
-  { id: "players", label: "Player Explorer" },
+  { id: "players", label: "Players" },
 ];
 
 export function Navbar({ activeTab, onTabChange }: NavbarProps) {
@@ -38,7 +38,7 @@ export function Navbar({ activeTab, onTabChange }: NavbarProps) {
               key={tab.id}
               onClick={() => onTabChange(tab.id)}
               data-testid={`tab-${tab.id}`}
-              className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
+              className={`px-2.5 py-1.5 text-xs sm:text-sm font-medium rounded-md transition-colors whitespace-nowrap ${
                 activeTab === tab.id
                   ? "bg-[#0b3a7a] text-white dark:bg-[#d4af37] dark:text-[#0a1628]"
                   : "text-[#0b3a7a]/70 dark:text-[#d4af37]/70 hover:bg-[#0b3a7a]/5 dark:hover:bg-[#d4af37]/10"
