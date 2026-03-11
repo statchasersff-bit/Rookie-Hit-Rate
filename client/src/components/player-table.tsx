@@ -3,7 +3,7 @@ import { useData } from "@/lib/data-context";
 import { Search, ChevronUp, ChevronDown } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { PlayerDrawer } from "./player-drawer";
-import type { PlayerSummary, Pos } from "@/lib/types";
+import type { PlayerSummary } from "@/lib/types";
 
 const hitTypeColors: Record<string, string> = {
   elite: "bg-[#d4af37]/20 text-[#b8960e] dark:bg-[#d4af37]/30 dark:text-[#d4af37]",
@@ -29,7 +29,6 @@ export function PlayerTable() {
   const [search, setSearch] = useState("");
   const [sortField, setSortField] = useState<SortField>("rookie_year");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
-  const [filterPos, setFilterPos] = useState<Pos | "">("");
   const [selectedPlayer, setSelectedPlayer] = useState<PlayerSummary | null>(null);
 
   const handleSort = (field: SortField) => {
@@ -54,10 +53,6 @@ export function PlayerTable() {
       result = result.filter((p) => filters.rounds.includes(p.rookie_round));
     }
 
-    if (filterPos) {
-      result = result.filter((p) => p.pos === filterPos);
-    }
-
     if (search) {
       const s = search.toLowerCase();
       result = result.filter((p) => p.player_name.toLowerCase().includes(s));
@@ -80,14 +75,12 @@ export function PlayerTable() {
       }
       return sortDir === "asc" ? cmp : -cmp;
     });
-  }, [playerSummaries, search, sortField, sortDir, filterPos, filters]);
+  }, [playerSummaries, search, sortField, sortDir, filters]);
 
   const SortIcon = ({ field }: { field: SortField }) => {
     if (sortField !== field) return null;
     return sortDir === "asc" ? <ChevronUp className="w-3 h-3 inline ml-0.5" /> : <ChevronDown className="w-3 h-3 inline ml-0.5" />;
   };
-
-  const positions: Pos[] = ["QB", "RB", "WR", "TE"];
 
   return (
     <div className="space-y-4" data-testid="player-table">
@@ -107,33 +100,6 @@ export function PlayerTable() {
             className="w-full h-9 pl-8 pr-3 text-sm rounded-md border border-[#0b3a7a]/20 dark:border-[#d4af37]/20 bg-transparent focus:outline-none focus:ring-1 focus:ring-[#0b3a7a] dark:focus:ring-[#d4af37]"
             data-testid="input-player-search"
           />
-        </div>
-        <div className="flex gap-1">
-          <button
-            onClick={() => setFilterPos("")}
-            className={`px-2 py-1 text-xs font-medium rounded-md border transition-colors ${
-              !filterPos
-                ? "bg-[#0b3a7a] text-white border-[#0b3a7a] dark:bg-[#d4af37] dark:text-[#0a1628]"
-                : "border-[#0b3a7a]/20 text-[#0b3a7a]/60 dark:border-[#d4af37]/20 dark:text-[#d4af37]/60"
-            }`}
-            data-testid="button-player-all"
-          >
-            All
-          </button>
-          {positions.map((p) => (
-            <button
-              key={p}
-              onClick={() => setFilterPos(p)}
-              className={`px-2 py-1 text-xs font-medium rounded-md border transition-colors ${
-                filterPos === p
-                  ? "bg-[#0b3a7a] text-white border-[#0b3a7a] dark:bg-[#d4af37] dark:text-[#0a1628]"
-                  : "border-[#0b3a7a]/20 text-[#0b3a7a]/60 dark:border-[#d4af37]/20 dark:text-[#d4af37]/60"
-              }`}
-              data-testid={`button-player-pos-${p.toLowerCase()}`}
-            >
-              {p}
-            </button>
-          ))}
         </div>
         <span className="text-xs text-muted-foreground">{filtered.length} players</span>
       </div>
