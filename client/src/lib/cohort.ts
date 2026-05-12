@@ -376,7 +376,9 @@ export function computeSurvival(
         );
         if (hasHit) hitsByYear++;
       }
-      data.push({ year: yr, pct: eligible > 0 ? hitsByYear / eligible : 0, hits: hitsByYear, eligible });
+      const rawPct = eligible > 0 ? hitsByYear / eligible : 0;
+      const prevPct = data.length > 0 ? data[data.length - 1].pct : 0;
+      data.push({ year: yr, pct: Math.max(rawPct, prevPct), hits: hitsByYear, eligible });
     }
 
     results.push({ group, n: total, data });
