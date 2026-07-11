@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import { useData } from "@/lib/data-context";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { MousePointerClick } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Cell, LabelList, Tooltip as RechartsTooltip } from "recharts";
 import type { CohortSummary, Pos } from "@/lib/types";
 
@@ -23,9 +24,15 @@ export function PickLensCard() {
 
   if (!cohort) {
     return (
-      <Card className="border-[#0b3a7a]/10 dark:border-[#d4af37]/10 bg-card" data-testid="pick-lens-empty">
-        <CardContent className="p-6 text-center text-muted-foreground text-sm">
-          Hover or click a cell to explore cohort details
+      <Card className="shadow-card" data-testid="pick-lens-empty">
+        <CardContent className="p-6 text-center">
+          <div className="mx-auto grid place-items-center h-10 w-10 rounded-full bg-accent text-[#b99120] dark:text-[#d4af37] mb-2">
+            <MousePointerClick className="w-5 h-5" />
+          </div>
+          <p className="text-sm font-semibold text-foreground">Pick Lens</p>
+          <p className="text-xs text-muted-foreground mt-1">
+            Hover or tap any cell in the grid to break down that cohort's outcomes.
+          </p>
         </CardContent>
       </Card>
     );
@@ -40,20 +47,21 @@ export function PickLensCard() {
   const outcomeName = filters.outcome === "elite" ? "Elite" : filters.outcome === "starter" ? "Starter" : "Flex";
 
   return (
-    <Card className="border-[#0b3a7a]/10 dark:border-[#d4af37]/10 bg-card" data-testid="pick-lens-card">
+    <Card className="shadow-card" data-testid="pick-lens-card">
       <CardHeader className="pb-2 px-4 pt-4">
         <div>
-          <div className="flex items-center gap-2">
+          <span className="scff-eyebrow">Pick Lens</span>
+          <div className="flex items-center gap-2 mt-1">
             <span className={`inline-flex items-center justify-center px-2 py-0.5 text-[10px] font-bold rounded-full ${posColors[cohort.pos as Pos] || ""}`}>
               {cohort.pos}
             </span>
-            <h3 className="text-sm font-bold text-[#0b3a7a] dark:text-[#d4af37]">
+            <h3 className="text-base font-bold text-[#0b1634] dark:text-white">
               Round {cohort.rookie_round}
             </h3>
           </div>
-          <div className="w-8 h-[2px] bg-gradient-to-r from-[#d4af37] to-[#d4af37]/50 mt-0.5 rounded-full" />
-          <p className="text-[10px] text-muted-foreground mt-0.5">
-            {filters.yearStart}–{filters.yearEnd} ({cohort.total} players)
+          <div className="scff-accent-bar scff-accent-bar--sm mt-1.5" />
+          <p className="text-[11px] text-muted-foreground mt-1 tabular-nums">
+            {filters.yearStart}–{filters.yearEnd} · {cohort.total} players
           </p>
         </div>
       </CardHeader>

@@ -1,8 +1,6 @@
-import { X, ChevronDown, ChevronUp } from "lucide-react";
+import { X, SlidersHorizontal, ChevronDown, ChevronUp, RotateCcw } from "lucide-react";
 import { useState } from "react";
 import { useData, defaultFilters } from "@/lib/data-context";
-import { Badge } from "@/components/ui/badge";
-import { Switch } from "@/components/ui/switch";
 import { Slider } from "@/components/ui/slider";
 import type { Pos, Format, Scoring, Outcome } from "@/lib/types";
 
@@ -17,10 +15,19 @@ const scorings: { value: Scoring; label: string }[] = [
   { value: "hppr", label: "Half PPR" },
 ];
 const outcomes: { value: Outcome; label: string }[] = [
-  { value: "elite", label: "Elite (Top 12)" },
-  { value: "starter", label: "Starter (Top 24)" },
-  { value: "flex", label: "Flex (Top 36)" },
+  { value: "elite", label: "Top 12" },
+  { value: "starter", label: "Top 24" },
+  { value: "flex", label: "Top 36" },
 ];
+
+function FieldGroup({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="flex flex-col gap-1.5">
+      <span className="scff-eyebrow">{label}</span>
+      <div className="flex items-center gap-1.5">{children}</div>
+    </div>
+  );
+}
 
 export function FilterBar() {
   const { filters, setFilters } = useData();
@@ -72,23 +79,32 @@ export function FilterBar() {
   }
 
   return (
-    <div className="sticky top-14 z-40 bg-white/95 dark:bg-[#0a1628]/95 backdrop-blur-md border-b border-[#0b3a7a]/10 dark:border-[#d4af37]/10" data-testid="filter-bar">
-      <div className="max-w-[1280px] mx-auto px-4">
+    <div className="bg-card/95 backdrop-blur-md border-b border-border" data-testid="filter-bar">
+      <div className="max-w-[1280px] mx-auto px-4 sm:px-6">
         <button
           onClick={() => setExpanded(!expanded)}
-          className="w-full flex items-center justify-between py-2 sm:hidden text-sm font-medium text-[#0b3a7a] dark:text-[#d4af37]"
+          className="w-full flex items-center justify-between py-2.5 sm:hidden text-sm font-semibold text-foreground focus-visible:outline-none"
+          aria-expanded={expanded}
+          aria-controls="scff-filter-panel"
           data-testid="button-filter-toggle"
         >
-          <span>Filters</span>
+          <span className="flex items-center gap-2">
+            <SlidersHorizontal className="w-4 h-4 text-[#b99120] dark:text-[#d4af37]" />
+            Filters
+            {activePills.length > 0 && (
+              <span className="grid place-items-center min-w-5 h-5 px-1.5 rounded-full bg-primary text-primary-foreground text-[11px] font-bold tabular-nums">
+                {activePills.length}
+              </span>
+            )}
+          </span>
           {expanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
         </button>
 
-        <div className={`${expanded ? "block" : "hidden sm:block"} py-3 space-y-3`}>
-          <div className="flex flex-wrap items-center gap-3">
-            <div className="flex flex-col gap-1">
-              <label className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Seasons</label>
-              <div className="flex items-center gap-2 min-w-[200px]">
-                <span className="text-xs font-medium text-[#0b3a7a] dark:text-[#d4af37] w-8">{filters.yearStart}</span>
+        <div id="scff-filter-panel" className={`${expanded ? "block" : "hidden sm:block"} py-3.5 space-y-3`}>
+          <div className="flex flex-wrap items-end gap-x-5 gap-y-3">
+            <FieldGroup label="Seasons">
+              <div className="flex items-center gap-2.5 min-w-[200px] pb-1">
+                <span className="text-xs font-semibold tabular-nums text-foreground w-9">{filters.yearStart}</span>
                 <Slider
                   data-testid="slider-years"
                   min={2017}
@@ -97,169 +113,137 @@ export function FilterBar() {
                   value={[filters.yearStart, filters.yearEnd]}
                   onValueChange={([s, e]) => setFilters((f) => ({ ...f, yearStart: s, yearEnd: e }))}
                   className="flex-1"
+                  aria-label="Season range"
                 />
-                <span className="text-xs font-medium text-[#0b3a7a] dark:text-[#d4af37] w-8">{filters.yearEnd}</span>
+                <span className="text-xs font-semibold tabular-nums text-foreground w-9">{filters.yearEnd}</span>
               </div>
-            </div>
+            </FieldGroup>
 
-            <div className="flex flex-col gap-1">
-              <label className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Format</label>
-              <div className="flex gap-1">
-                {formats.map((f) => (
-                  <button
-                    key={f.label}
-                    onClick={() => setFilters((prev) => ({ ...prev, format: f.value }))}
-                    data-testid={`button-format-${f.label.toLowerCase()}`}
-                    className={`px-2.5 py-1 text-xs font-medium rounded-md border transition-colors ${
-                      filters.format === f.value
-                        ? "bg-[#0b3a7a] text-white border-[#0b3a7a] dark:bg-[#d4af37] dark:text-[#0a1628] dark:border-[#d4af37]"
-                        : "border-[#0b3a7a]/20 text-[#0b3a7a]/60 dark:border-[#d4af37]/20 dark:text-[#d4af37]/60"
-                    }`}
-                  >
-                    {f.label}
-                  </button>
-                ))}
-              </div>
-            </div>
+            <FieldGroup label="Format">
+              {formats.map((f) => (
+                <button
+                  key={f.label}
+                  onClick={() => setFilters((prev) => ({ ...prev, format: f.value }))}
+                  data-testid={`button-format-${f.label.toLowerCase()}`}
+                  data-selected={filters.format === f.value}
+                  aria-pressed={filters.format === f.value}
+                  className="scff-chip px-2.5 h-8 text-xs"
+                >
+                  {f.label}
+                </button>
+              ))}
+            </FieldGroup>
 
-            <div className="flex flex-col gap-1">
-              <label className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Scoring</label>
-              <div className="flex gap-1">
-                {scorings.map((s) => (
-                  <button
-                    key={s.label}
-                    onClick={() => setFilters((prev) => ({ ...prev, scoring: s.value }))}
-                    data-testid={`button-scoring-${s.label.toLowerCase()}`}
-                    className={`px-2.5 py-1 text-xs font-medium rounded-md border transition-colors ${
-                      filters.scoring === s.value
-                        ? "bg-[#0b3a7a] text-white border-[#0b3a7a] dark:bg-[#d4af37] dark:text-[#0a1628] dark:border-[#d4af37]"
-                        : "border-[#0b3a7a]/20 text-[#0b3a7a]/60 dark:border-[#d4af37]/20 dark:text-[#d4af37]/60"
-                    }`}
-                  >
-                    {s.label}
-                  </button>
-                ))}
-              </div>
-            </div>
+            <FieldGroup label="Scoring">
+              {scorings.map((s) => (
+                <button
+                  key={s.label}
+                  onClick={() => setFilters((prev) => ({ ...prev, scoring: s.value }))}
+                  data-testid={`button-scoring-${s.label.toLowerCase()}`}
+                  data-selected={filters.scoring === s.value}
+                  aria-pressed={filters.scoring === s.value}
+                  className="scff-chip px-2.5 h-8 text-xs"
+                >
+                  {s.label}
+                </button>
+              ))}
+            </FieldGroup>
 
-            <div className="flex flex-col gap-1">
-              <label className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Outcome</label>
-              <div className="flex gap-1">
-                {outcomes.map((o) => (
-                  <button
-                    key={o.value}
-                    onClick={() => setFilters((prev) => ({ ...prev, outcome: o.value }))}
-                    data-testid={`button-outcome-${o.value}`}
-                    className={`px-2.5 py-1 text-xs font-medium rounded-md border transition-colors ${
-                      filters.outcome === o.value
-                        ? "bg-[#0b3a7a] text-white border-[#0b3a7a] dark:bg-[#d4af37] dark:text-[#0a1628] dark:border-[#d4af37]"
-                        : "border-[#0b3a7a]/20 text-[#0b3a7a]/60 dark:border-[#d4af37]/20 dark:text-[#d4af37]/60"
-                    }`}
-                  >
-                    {o.label}
-                  </button>
-                ))}
-              </div>
-            </div>
+            <FieldGroup label="Outcome">
+              {outcomes.map((o) => (
+                <button
+                  key={o.value}
+                  onClick={() => setFilters((prev) => ({ ...prev, outcome: o.value }))}
+                  data-testid={`button-outcome-${o.value}`}
+                  data-selected={filters.outcome === o.value}
+                  aria-pressed={filters.outcome === o.value}
+                  className="scff-chip px-2.5 h-8 text-xs"
+                >
+                  {o.label}
+                </button>
+              ))}
+            </FieldGroup>
 
-            <div className="flex flex-col gap-1">
-              <label className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Position</label>
-              <div className="flex gap-1">
-                {positions.map((p) => (
-                  <button
-                    key={p}
-                    onClick={() =>
-                      setFilters((prev) => ({
-                        ...prev,
-                        positions: prev.positions.includes(p)
-                          ? prev.positions.filter((x) => x !== p)
-                          : [...prev.positions, p],
-                      }))
-                    }
-                    data-testid={`button-pos-${p.toLowerCase()}`}
-                    className={`px-2.5 py-1 text-xs font-medium rounded-md border transition-colors ${
-                      filters.positions.includes(p)
-                        ? "bg-[#0b3a7a] text-white border-[#0b3a7a] dark:bg-[#d4af37] dark:text-[#0a1628] dark:border-[#d4af37]"
-                        : "border-[#0b3a7a]/20 text-[#0b3a7a]/60 dark:border-[#d4af37]/20 dark:text-[#d4af37]/60"
-                    }`}
-                  >
-                    {p}
-                  </button>
-                ))}
-              </div>
-            </div>
+            <FieldGroup label="Position">
+              {positions.map((p) => (
+                <button
+                  key={p}
+                  onClick={() =>
+                    setFilters((prev) => ({
+                      ...prev,
+                      positions: prev.positions.includes(p)
+                        ? prev.positions.filter((x) => x !== p)
+                        : [...prev.positions, p],
+                    }))
+                  }
+                  data-testid={`button-pos-${p.toLowerCase()}`}
+                  data-selected={filters.positions.includes(p)}
+                  aria-pressed={filters.positions.includes(p)}
+                  className="scff-chip px-2.5 h-8 text-xs"
+                >
+                  {p}
+                </button>
+              ))}
+            </FieldGroup>
 
-            <div className="flex flex-col gap-1">
-              <label className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Round</label>
-              <div className="flex gap-1">
-                {rounds.map((r) => (
-                  <button
-                    key={r}
-                    onClick={() =>
-                      setFilters((prev) => ({
-                        ...prev,
-                        rounds: prev.rounds.includes(r)
-                          ? prev.rounds.filter((x) => x !== r)
-                          : [...prev.rounds, r],
-                      }))
-                    }
-                    data-testid={`button-round-${r}`}
-                    className={`w-7 h-7 text-xs font-medium rounded-md border transition-colors flex items-center justify-center ${
-                      filters.rounds.includes(r)
-                        ? "bg-[#0b3a7a] text-white border-[#0b3a7a] dark:bg-[#d4af37] dark:text-[#0a1628] dark:border-[#d4af37]"
-                        : "border-[#0b3a7a]/20 text-[#0b3a7a]/60 dark:border-[#d4af37]/20 dark:text-[#d4af37]/60"
-                    }`}
-                  >
-                    {r}
-                  </button>
-                ))}
-              </div>
-            </div>
+            <FieldGroup label="Round">
+              {rounds.map((r) => (
+                <button
+                  key={r}
+                  onClick={() =>
+                    setFilters((prev) => ({
+                      ...prev,
+                      rounds: prev.rounds.includes(r)
+                        ? prev.rounds.filter((x) => x !== r)
+                        : [...prev.rounds, r],
+                    }))
+                  }
+                  data-testid={`button-round-${r}`}
+                  data-selected={filters.rounds.includes(r)}
+                  aria-pressed={filters.rounds.includes(r)}
+                  aria-label={`Round ${r}`}
+                  className="scff-chip w-8 h-8 text-xs"
+                >
+                  {r}
+                </button>
+              ))}
+            </FieldGroup>
 
-            <div className="flex flex-col gap-1">
-              <label className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Min Games</label>
-              <div className="flex items-center gap-2">
-                <input
-                  type="number"
-                  value={filters.minGames}
-                  onChange={(e) => setFilters((f) => ({ ...f, minGames: parseInt(e.target.value) || 1 }))}
-                  className="w-14 h-7 px-2 text-xs rounded-md border border-[#0b3a7a]/20 dark:border-[#d4af37]/20 bg-transparent text-foreground"
-                  min={1}
-                  max={17}
-                  data-testid="input-min-games"
-                />
-              </div>
-            </div>
-
-            <div className="flex flex-col gap-1">
-              <label className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Confidence</label>
-              <Switch
-                checked={filters.showConfidence}
-                onCheckedChange={(v) => setFilters((f) => ({ ...f, showConfidence: v }))}
-                data-testid="switch-confidence"
+            <FieldGroup label="Min Games">
+              <input
+                type="number"
+                value={filters.minGames}
+                onChange={(e) => setFilters((f) => ({ ...f, minGames: parseInt(e.target.value) || 1 }))}
+                className="scff-input w-16 h-8 px-2.5 text-xs tabular-nums"
+                min={1}
+                max={17}
+                aria-label="Minimum games played"
+                data-testid="input-min-games"
               />
-            </div>
+            </FieldGroup>
           </div>
 
           {activePills.length > 0 && (
-            <div className="flex flex-wrap items-center gap-1.5" data-testid="filter-pills">
+            <div className="flex flex-wrap items-center gap-1.5 pt-1" data-testid="filter-pills">
+              <span className="scff-eyebrow mr-0.5">Active</span>
               {activePills.map((pill, i) => (
-                <Badge
+                <button
                   key={i}
-                  variant="secondary"
-                  className="text-xs gap-1 cursor-pointer bg-[#0b3a7a]/10 text-[#0b3a7a] dark:bg-[#d4af37]/10 dark:text-[#d4af37]"
                   onClick={pill.onRemove}
+                  className="inline-flex items-center gap-1 pl-2 pr-1.5 py-1 rounded-md text-xs font-semibold bg-accent text-accent-foreground border border-[#d4af37]/30 hover-elevate transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#d4af37]/50"
+                  aria-label={`Remove ${pill.label} filter`}
                   data-testid={`pill-${pill.label}`}
                 >
                   {pill.label}
-                  <X className="w-3 h-3" />
-                </Badge>
+                  <X className="w-3 h-3 opacity-70" />
+                </button>
               ))}
               <button
                 onClick={() => setFilters(defaultFilters)}
-                className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+                className="inline-flex items-center gap-1 ml-1 text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors focus-visible:outline-none"
                 data-testid="button-clear-filters"
               >
+                <RotateCcw className="w-3 h-3" />
                 Clear all
               </button>
             </div>

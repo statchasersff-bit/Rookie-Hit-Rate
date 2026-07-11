@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import type { PlayerSummary } from "@/lib/types";
@@ -28,15 +29,32 @@ export function PlayerDrawer({ player, onClose }: PlayerDrawerProps) {
     ? player.rookie_year + player.breakout_year - 1
     : null;
 
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
   return (
-    <div className="fixed inset-0 z-50 flex justify-end" data-testid="player-drawer">
-      <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative w-full max-w-md bg-white dark:bg-[#0a1628] shadow-2xl overflow-y-auto animate-in slide-in-from-right">
-        <div className="sticky top-0 bg-[#0b3a7a] dark:bg-[#0f1d33] p-4 text-white z-10">
+    <div
+      className="fixed inset-0 z-50 flex justify-end"
+      data-testid="player-drawer"
+      role="dialog"
+      aria-modal="true"
+      aria-label={`${player.player_name} details`}
+    >
+      <div className="absolute inset-0 bg-[#07142f]/40 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative w-full max-w-md bg-card shadow-2xl overflow-y-auto animate-in slide-in-from-right duration-200">
+        <div
+          className="sticky top-0 p-5 text-white z-10 border-b border-[#d4af37]/25"
+          style={{ backgroundImage: "linear-gradient(180deg, #0b1634 0%, #122347 100%)" }}
+        >
           <div className="flex items-start justify-between gap-2">
             <div>
-              <h2 className="text-lg font-bold" data-testid="text-player-name">{player.player_name}</h2>
-              <div className="w-8 h-[2px] bg-[#d4af37] mt-0.5 rounded-full" />
+              <h2 className="text-lg font-[850] tracking-tight" data-testid="text-player-name">{player.player_name}</h2>
+              <div className="w-8 h-[3px] bg-[#d4af37] mt-1 rounded-full" />
               <div className="flex items-center gap-2 mt-1.5 text-sm">
                 <span className="font-medium">{player.pos}</span>
                 <span className="opacity-60">|</span>
@@ -74,19 +92,19 @@ export function PlayerDrawer({ player, onClose }: PlayerDrawerProps) {
             </div>
             <div className="bg-muted/30 dark:bg-muted/20 rounded-md p-3 text-center">
               <div className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Best Finish</div>
-              <div className="text-sm font-bold text-[#0b3a7a] dark:text-white mt-1">{player.best_finish}</div>
+              <div className="text-sm font-bold text-[#0b1634] dark:text-white mt-1">{player.best_finish}</div>
             </div>
             <div className="bg-muted/30 dark:bg-muted/20 rounded-md p-3 text-center">
               <div className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Breakout</div>
-              <div className="text-sm font-bold text-[#0b3a7a] dark:text-white mt-1">
+              <div className="text-sm font-bold text-[#0b1634] dark:text-white mt-1">
                 {player.breakout_time ? `Year ${player.breakout_time}` : "N/A"}
               </div>
             </div>
           </div>
 
           <div>
-            <h3 className="text-sm font-bold text-[#0b3a7a] dark:text-white mb-2">Season History</h3>
-            <div className="w-8 h-[2px] bg-gradient-to-r from-[#d4af37] to-[#d4af37]/50 mb-3 rounded-full" />
+            <h3 className="text-sm font-bold text-[#0b1634] dark:text-white">Season History</h3>
+            <div className="scff-accent-bar scff-accent-bar--sm mt-1.5 mb-3" />
             <div className="space-y-1">
               {player.seasons.length === 0 ? (
                 <p className="text-sm text-muted-foreground">No qualifying seasons</p>
@@ -113,7 +131,7 @@ export function PlayerDrawer({ player, onClose }: PlayerDrawerProps) {
                         </div>
                         <div className="flex items-center gap-3 text-xs">
                           <span className="text-muted-foreground">{s.games} GP</span>
-                          <span className="font-bold text-[#0b3a7a] dark:text-white">
+                          <span className="font-bold text-[#0b1634] dark:text-white">
                             {s.pos}{s.pos_rank}
                           </span>
                         </div>

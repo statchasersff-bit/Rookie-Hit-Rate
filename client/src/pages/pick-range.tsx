@@ -149,29 +149,36 @@ export default function PickRange() {
 
       {headline && (
         <div
-          className="flex items-start gap-3 rounded-lg border border-[#d4af37]/30 bg-gradient-to-r from-[#d4af37]/5 via-[#d4af37]/10 to-[#d4af37]/5 dark:from-[#d4af37]/10 dark:via-[#d4af37]/15 dark:to-[#d4af37]/10 px-4 py-3"
+          className="flex items-start gap-3 rounded-xl border border-[#d4af37]/35 bg-accent/60 px-4 py-3.5 shadow-card"
           data-testid="headline-banner"
+          aria-live="polite"
         >
-          <Sparkles className="w-4 h-4 text-[#d4af37] shrink-0 mt-0.5" />
-          <p className="text-sm font-medium text-[#0b3a7a] dark:text-[#d4af37]">
-            {headline}
-          </p>
+          <span className="grid place-items-center h-7 w-7 shrink-0 rounded-lg bg-[#d4af37]/20 text-[#b99120] dark:text-[#d4af37]">
+            <Sparkles className="w-4 h-4" />
+          </span>
+          <div>
+            <span className="scff-eyebrow text-[#b99120] dark:text-[#d4af37]">Key takeaway</span>
+            <p className="text-sm font-semibold text-[#0b1634] dark:text-white leading-snug mt-0.5">
+              {headline}
+            </p>
+          </div>
         </div>
       )}
 
       {insights.length > 0 && (
         <div data-testid="pick-range-analysis">
-          <h3 className="text-sm font-bold text-[#0b3a7a] dark:text-white mb-1">Analysis</h3>
-          <div className="w-8 h-[2px] bg-gradient-to-r from-[#d4af37] to-[#d4af37]/50 rounded-full mb-3" />
-          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+          <span className="scff-eyebrow">Breakdown</span>
+          <h3 className="scff-title text-lg text-[#0b1634] dark:text-white mt-0.5">Analysis</h3>
+          <div className="scff-accent-bar scff-accent-bar--sm mt-1.5 mb-3" />
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {insights.map((insight, idx) => {
               const Icon = insight.icon;
               const toneClasses =
                 insight.tone === "positive"
-                  ? "border-emerald-200 dark:border-emerald-800/40 bg-emerald-50/50 dark:bg-emerald-950/20"
+                  ? "border border-emerald-200 dark:border-emerald-800/40 bg-emerald-50/60 dark:bg-emerald-950/20 shadow-card"
                   : insight.tone === "negative"
-                    ? "border-red-200 dark:border-red-800/40 bg-red-50/50 dark:bg-red-950/20"
-                    : "border-[#0b3a7a]/10 dark:border-[#d4af37]/10 bg-card";
+                    ? "border border-red-200 dark:border-red-800/40 bg-red-50/60 dark:bg-red-950/20 shadow-card"
+                    : "scff-card";
               const iconColor =
                 insight.tone === "positive"
                   ? "text-emerald-600 dark:text-emerald-400"
@@ -188,15 +195,15 @@ export default function PickRange() {
               return (
                 <div
                   key={idx}
-                  className={`rounded-lg border p-3 ${toneClasses}`}
+                  className={`rounded-xl p-3.5 ${toneClasses}`}
                   data-testid={`pick-range-insight-${idx}`}
                 >
-                  <div className="flex items-center gap-2 mb-1">
-                    <Icon className={`h-4 w-4 shrink-0 ${iconColor}`} />
-                    <span className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground">{insight.title}</span>
+                  <div className="flex items-center gap-2 mb-1.5">
+                    <Icon className={`h-4 w-4 shrink-0 ${iconColor}`} aria-hidden="true" />
+                    <span className="scff-eyebrow">{insight.title}</span>
                   </div>
-                  <div className={`text-xl font-bold tabular-nums ${statColor}`}>{insight.stat}</div>
-                  <p className="text-xs text-muted-foreground leading-relaxed mt-0.5">{insight.body}</p>
+                  <div className={`text-2xl font-[850] tracking-tight tabular-nums ${statColor}`}>{insight.stat}</div>
+                  <p className="text-xs text-muted-foreground leading-relaxed mt-1">{insight.body}</p>
                 </div>
               );
             })}

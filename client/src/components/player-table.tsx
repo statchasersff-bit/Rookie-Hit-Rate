@@ -85,29 +85,36 @@ export function PlayerTable() {
   return (
     <div className="space-y-4" data-testid="player-table">
       <div>
-        <h2 className="text-xl font-bold text-[#0b3a7a] dark:text-white">Player Explorer</h2>
-        <div className="w-12 h-[3px] bg-gradient-to-r from-[#d4af37] to-[#d4af37]/50 mt-1 rounded-full" />
+        <h2 className="scff-title text-[clamp(1.25rem,2.4vw,1.6rem)] text-[#0b1634] dark:text-white">Player Explorer</h2>
+        <div className="scff-accent-bar mt-1.5" />
+        <p className="text-sm text-muted-foreground mt-2">
+          Every drafted rookie in range with their best positional finish, breakout timing, and outcome.
+        </p>
       </div>
 
       <div className="flex flex-wrap items-center gap-3">
-        <div className="relative flex-1 min-w-[200px] max-w-sm">
-          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+        <div className="relative flex-1 min-w-[220px] max-w-sm">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" aria-hidden="true" />
           <input
             type="search"
-            placeholder="Search players..."
+            placeholder="Search players…"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full h-9 pl-8 pr-3 text-sm rounded-md border border-[#0b3a7a]/20 dark:border-[#d4af37]/20 bg-transparent focus:outline-none focus:ring-1 focus:ring-[#0b3a7a] dark:focus:ring-[#d4af37]"
+            className="scff-input w-full h-10 pl-9 pr-3 text-sm"
+            aria-label="Search players by name"
             data-testid="input-player-search"
           />
         </div>
-        <span className="text-xs text-muted-foreground">{filtered.length} players</span>
+        <span className="text-xs text-muted-foreground tabular-nums">
+          <span className="font-bold text-foreground">{filtered.length}</span> player{filtered.length === 1 ? "" : "s"}
+        </span>
       </div>
 
-      <div className="overflow-x-auto rounded-lg border border-[#0b3a7a]/5 dark:border-[#d4af37]/10">
+      <div className="scff-card overflow-hidden p-0">
+        <div className="overflow-x-auto max-h-[70vh] overflow-y-auto">
         <table className="w-full text-sm">
-          <thead>
-            <tr className="bg-[#0b3a7a]/5 dark:bg-[#d4af37]/5">
+          <thead className="sticky top-0 z-10">
+            <tr className="bg-secondary/80 backdrop-blur-sm border-b border-border">
               {[
                 { field: "player_name" as SortField, label: "Player" },
                 { field: "pos" as SortField, label: "Pos" },
@@ -120,35 +127,48 @@ export function PlayerTable() {
               ].map((col, i) => (
                 <th
                   key={col.field + i}
-                  className="px-3 py-2 text-left text-[10px] uppercase tracking-wider text-muted-foreground font-semibold cursor-pointer select-none"
+                  className={`px-3 py-2.5 text-left text-[10px] uppercase tracking-wider font-bold cursor-pointer select-none transition-colors hover:text-foreground ${sortField === col.field ? "text-foreground" : "text-muted-foreground"} ${i >= 3 ? "text-center" : ""}`}
                   onClick={() => handleSort(col.field)}
+                  aria-sort={sortField === col.field ? (sortDir === "asc" ? "ascending" : "descending") : "none"}
                 >
-                  {col.label}
-                  <SortIcon field={col.field} />
+                  <span className={i >= 3 ? "inline-flex items-center justify-center" : "inline-flex items-center"}>
+                    {col.label}
+                    <SortIcon field={col.field} />
+                  </span>
                 </th>
               ))}
             </tr>
           </thead>
           <tbody>
+            {filtered.length === 0 && (
+              <tr>
+                <td colSpan={8} className="px-4 py-16 text-center">
+                  <p className="text-sm font-semibold text-foreground">No players match your filters</p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Try widening the season range or clearing position/round filters{search ? " and the search box" : ""}.
+                  </p>
+                </td>
+              </tr>
+            )}
             {filtered.slice(0, 100).map((player) => (
               <tr
                 key={player.player_id}
-                className="border-t border-[#0b3a7a]/5 dark:border-[#d4af37]/5 cursor-pointer transition-colors hover:bg-[#0b3a7a]/3 dark:hover:bg-[#d4af37]/5"
+                className="border-t border-border/70 cursor-pointer transition-colors hover:bg-accent/50"
                 onClick={() => setSelectedPlayer(player)}
                 data-testid={`row-player-${player.player_id}`}
               >
-                <td className="px-3 py-2 font-medium text-[#0b3a7a] dark:text-white">{player.player_name}</td>
-                <td className="px-3 py-2">
-                  <span className="text-xs font-medium">{player.pos}</span>
+                <td className="px-3 py-2.5 font-semibold text-[#0b1634] dark:text-white whitespace-nowrap">{player.player_name}</td>
+                <td className="px-3 py-2.5">
+                  <span className="text-xs font-semibold">{player.pos}</span>
                 </td>
-                <td className="px-3 py-2 text-xs text-muted-foreground">{player.current_nfl_team}</td>
-                <td className="px-3 py-2 tabular-nums">{player.rookie_year}</td>
-                <td className="px-3 py-2 tabular-nums">{player.rookie_round}.{String(player.rookie_pick).padStart(2, "0")}</td>
-                <td className="px-3 py-2 text-xs">{player.best_finish}</td>
-                <td className="px-3 py-2 tabular-nums text-xs">
+                <td className="px-3 py-2.5 text-xs text-muted-foreground">{player.current_nfl_team}</td>
+                <td className="px-3 py-2.5 tabular-nums text-center">{player.rookie_year}</td>
+                <td className="px-3 py-2.5 tabular-nums text-center">{player.rookie_round}.{String(player.rookie_pick).padStart(2, "0")}</td>
+                <td className="px-3 py-2.5 text-xs text-center">{player.best_finish}</td>
+                <td className="px-3 py-2.5 tabular-nums text-xs text-center">
                   {player.breakout_time ? `Year ${player.breakout_time}` : "—"}
                 </td>
-                <td className="px-3 py-2">
+                <td className="px-3 py-2.5 text-center">
                   <Badge variant="secondary" className={`text-[10px] ${hitTypeColors[player.hit_type]}`}>
                     {hitTypeLabels[player.hit_type] || player.hit_type}
                   </Badge>
@@ -157,9 +177,10 @@ export function PlayerTable() {
             ))}
           </tbody>
         </table>
+        </div>
         {filtered.length > 100 && (
-          <div className="px-3 py-2 text-xs text-muted-foreground bg-muted/30 text-center">
-            Showing 100 of {filtered.length} players
+          <div className="px-3 py-2.5 text-xs text-muted-foreground bg-secondary/50 border-t border-border text-center">
+            Showing first <span className="font-semibold text-foreground tabular-nums">100</span> of <span className="font-semibold text-foreground tabular-nums">{filtered.length}</span> — refine filters to narrow the list.
           </div>
         )}
       </div>

@@ -70,10 +70,10 @@ export function PickRangeHeatmap({ focusRound, onFocusRoundChange }: PickRangeHe
   return (
     <div className="w-full" data-testid="pick-range-heatmap">
       <div className="mb-4">
-        <h2 className="text-xl font-bold text-[#0b3a7a] dark:text-white">
+        <h2 className="scff-title text-[clamp(1.25rem,2.4vw,1.6rem)] text-[#0b1634] dark:text-white">
           Pick Range Breakdown
         </h2>
-        <div className="w-12 h-[3px] bg-gradient-to-r from-[#d4af37] to-[#d4af37]/50 mt-1 rounded-full" />
+        <div className="scff-accent-bar mt-1.5" />
         <p className="text-sm text-muted-foreground mt-1">
           Hit rates by 3-pick ranges within each round ({filters.yearStart}–{filters.yearEnd})
         </p>

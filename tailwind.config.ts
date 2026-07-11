@@ -6,11 +6,30 @@ export default {
   theme: {
     extend: {
       borderRadius: {
-        lg: ".5625rem", /* 9px */
-        md: ".375rem", /* 6px */
-        sm: ".1875rem", /* 3px */
+        lg: ".875rem", /* 14px */
+        md: ".625rem", /* 10px */
+        sm: ".375rem", /* 6px */
+      },
+      boxShadow: {
+        card: "0 1px 2px rgba(15, 23, 42, .04), 0 8px 24px rgba(15, 23, 42, .05)",
+        pop: "0 4px 12px rgba(15, 23, 42, .08), 0 16px 40px rgba(15, 23, 42, .12)",
       },
       colors: {
+        // StatChasers brand scale
+        navy: {
+          950: "#07142f",
+          900: "#0b1634",
+          800: "#122347",
+          700: "#1b3268",
+          DEFAULT: "#122347",
+        },
+        gold: {
+          600: "#b99120",
+          500: "#d4af37",
+          400: "#e3c45b",
+          100: "#faf3da",
+          DEFAULT: "#d4af37",
+        },
         // Flat / base colors (regular buttons)
         background: "hsl(var(--background) / <alpha-value>)",
         foreground: "hsl(var(--foreground) / <alpha-value>)",

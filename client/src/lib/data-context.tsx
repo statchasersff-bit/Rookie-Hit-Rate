@@ -31,7 +31,7 @@ const defaultFilters: Filters = {
   positions: [],
   rounds: [],
   minGames: 8,
-  showConfidence: true,
+  showConfidence: false,
 };
 
 const DataContext = createContext<DataContextType>({

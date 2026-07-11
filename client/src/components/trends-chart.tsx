@@ -298,8 +298,8 @@ export function TrendsChart() {
   return (
     <div className="space-y-4" data-testid="trends-chart">
       <div>
-        <h2 className="text-xl font-bold text-[#0b3a7a] dark:text-white">Hit Rate Trends</h2>
-        <div className="w-12 h-[3px] bg-gradient-to-r from-[#d4af37] to-[#d4af37]/50 mt-1 rounded-full" />
+        <h2 className="scff-title text-[clamp(1.25rem,2.4vw,1.6rem)] text-[#0b1634] dark:text-white">Hit Rate Trends</h2>
+        <div className="scff-accent-bar mt-1.5" />
         <p className="text-sm text-muted-foreground mt-1">
           {outcomeName} hit rate by draft class year
         </p>
@@ -520,7 +520,7 @@ export function TrendsChart() {
       </div>
 
       {headline && (
-        <div className="flex items-start gap-3 rounded-lg border border-[#d4af37]/30 bg-gradient-to-r from-[#d4af37]/5 via-[#d4af37]/10 to-[#d4af37]/5 dark:from-[#d4af37]/10 dark:via-[#d4af37]/15 dark:to-[#d4af37]/10 px-4 py-3" data-testid="trends-headline">
+        <div className="flex items-start gap-3 rounded-xl border border-[#d4af37]/35 bg-accent/60 px-4 py-3.5 shadow-card" data-testid="trends-headline">
           <Sparkles className="w-4 h-4 text-[#d4af37] shrink-0 mt-0.5" />
           <p className="text-sm font-medium text-[#0b3a7a] dark:text-[#d4af37]">{headline}</p>
         </div>
@@ -528,8 +528,8 @@ export function TrendsChart() {
 
       {insights.length > 0 && (
         <div data-testid="trends-analysis">
-          <h3 className="text-sm font-bold text-[#0b3a7a] dark:text-white mb-1">Analysis</h3>
-          <div className="w-8 h-[2px] bg-gradient-to-r from-[#d4af37] to-[#d4af37]/50 rounded-full mb-3" />
+          <h3 className="scff-title text-base text-[#0b1634] dark:text-white mb-1.5">Analysis</h3>
+          <div className="scff-accent-bar scff-accent-bar--sm mb-3" />
           <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
             {insights.map((insight, idx) => {
               const Icon = insight.icon;
@@ -558,7 +558,7 @@ export function TrendsChart() {
                     <Icon className={`h-4 w-4 shrink-0 ${iconColor}`} />
                     <span className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground">{insight.title}</span>
                   </div>
-                  <div className={`text-xl font-bold tabular-nums ${statColor}`}>{insight.stat}</div>
+                  <div className={`text-2xl font-[850] tracking-tight tabular-nums ${statColor}`}>{insight.stat}</div>
                   <p className="text-xs text-muted-foreground leading-relaxed mt-0.5">{insight.body}</p>
                 </div>
               );
