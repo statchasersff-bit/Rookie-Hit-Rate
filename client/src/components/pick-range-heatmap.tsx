@@ -44,12 +44,7 @@ function pad(n: number) {
   return n.toString().padStart(2, "0");
 }
 
-interface PickRangeHeatmapProps {
-  focusRound: number | null;
-  onFocusRoundChange: (round: number | null) => void;
-}
-
-export function PickRangeHeatmap({ focusRound, onFocusRoundChange }: PickRangeHeatmapProps) {
+export function PickRangeHeatmap() {
   const { pickRangeCohorts, filters } = useData();
   const [hoveredKey, setHoveredKey] = useState<string | null>(null);
 
@@ -62,8 +57,7 @@ export function PickRangeHeatmap({ focusRound, onFocusRoundChange }: PickRangeHe
   }, [pickRangeCohorts]);
 
   const positions = filters.positions.length > 0 ? allPositions.filter((p) => filters.positions.includes(p)) : allPositions;
-  const rounds = filters.rounds.length > 0 ? allRounds.filter((r) => filters.rounds.includes(r)) : allRounds;
-  const visibleRounds = focusRound ? [focusRound] : rounds;
+  const visibleRounds = filters.rounds.length > 0 ? allRounds.filter((r) => filters.rounds.includes(r)) : allRounds;
 
   const isDark = document.documentElement.classList.contains("dark");
 
@@ -79,44 +73,16 @@ export function PickRangeHeatmap({ focusRound, onFocusRoundChange }: PickRangeHe
         </p>
       </div>
 
-      <div className="flex flex-wrap gap-1.5 mb-4">
-        <button
-          onClick={() => onFocusRoundChange(null)}
-          data-testid="btn-focus-all"
-          className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${
-            focusRound === null
-              ? "bg-[#0b3a7a] text-white dark:bg-[#d4af37] dark:text-[#0a1628]"
-              : "bg-muted/50 text-muted-foreground hover:bg-muted"
-          }`}
-        >
-          All Rounds
-        </button>
-        {rounds.map((r) => (
-          <button
-            key={r}
-            onClick={() => onFocusRoundChange(r)}
-            data-testid={`btn-focus-rd-${r}`}
-            className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${
-              focusRound === r
-                ? "bg-[#0b3a7a] text-white dark:bg-[#d4af37] dark:text-[#0a1628]"
-                : "bg-muted/50 text-muted-foreground hover:bg-muted"
-            }`}
-          >
-            Rd {r}
-          </button>
-        ))}
-      </div>
-
       <div className="overflow-x-auto">
-        <table className="w-full border-collapse">
+        <table className="w-full border-collapse border border-border">
           <thead>
-            <tr>
-              <th className="text-left p-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground w-20">Pos</th>
+            <tr className="bg-[#0b1634]">
+              <th className="text-left p-2 text-xs font-semibold uppercase tracking-wider text-white w-20">Pos</th>
               {visibleRounds.map((r, ri) => (
                 pickRanges.map((pr, pi) => (
                   <th
                     key={`${r}-${pr.start}`}
-                    className={`p-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground text-center ${
+                    className={`p-1 text-[10px] font-semibold uppercase tracking-wider text-white text-center ${
                       pi === 0 && ri > 0 ? "border-l-2 border-[#0b3a7a]/10 dark:border-[#d4af37]/10" : ""
                     }`}
                   >
@@ -195,11 +161,11 @@ export function PickRangeHeatmap({ focusRound, onFocusRoundChange }: PickRangeHe
                                 <div className="space-y-1.5 text-xs">
                                   <div className="font-bold text-[#d4af37]">{pos} Picks {round}.{pad(pr.start)}–{round}.{pad(pr.end)}</div>
                                   <div className="grid grid-cols-2 gap-x-4 gap-y-0.5">
-                                    <span className="opacity-70">Elite (1–12):</span>
+                                    <span className="opacity-70">Top-12 (1–12):</span>
                                     <span className="font-medium">{(cohort.elite_rate * 100).toFixed(1)}%</span>
-                                    <span className="opacity-70">Starter (13–24):</span>
+                                    <span className="opacity-70">Top-24 (13–24):</span>
                                     <span className="font-medium">{(cohort.starter_rate * 100).toFixed(1)}%</span>
-                                    <span className="opacity-70">Flex (25–36):</span>
+                                    <span className="opacity-70">Top-36 (25–36):</span>
                                     <span className="font-medium">{(cohort.flex_rate * 100).toFixed(1)}%</span>
                                     <span className="opacity-70">Bust (37+):</span>
                                     <span className="font-medium">{(cohort.bust_rate * 100).toFixed(1)}%</span>

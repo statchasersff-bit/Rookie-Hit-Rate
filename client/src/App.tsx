@@ -10,7 +10,6 @@ import { FilterBar } from "@/components/filter-bar";
 import Overview from "@/pages/overview";
 import Trends from "@/pages/trends";
 import Cohorts from "@/pages/cohorts";
-import PickRange from "@/pages/pick-range";
 import PlayerExplorer from "@/pages/player-explorer";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -55,14 +54,13 @@ function AppContent() {
   return (
     <div className="scff-app min-h-screen bg-[var(--stc-page)] text-foreground dark:bg-background">
       <Navbar activeTab={activeTab} onTabChange={setActiveTab} />
-      <FilterBar />
-      <main className="max-w-[1280px] mx-auto px-4 sm:px-6 py-6 sm:py-8">
+      <FilterBar activeTab={activeTab} />
+      <main className="max-w-[1380px] mx-auto px-px py-6 sm:py-8">
         {loading ? (
           <LoadingState />
         ) : (
           <>
             {activeTab === "overview" && <Overview />}
-            {activeTab === "pick-range" && <PickRange />}
             {activeTab === "trends" && <Trends />}
             {activeTab === "cohorts" && <Cohorts />}
             {activeTab === "players" && <PlayerExplorer />}

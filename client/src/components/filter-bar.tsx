@@ -1,37 +1,45 @@
-import { X, SlidersHorizontal, ChevronDown, ChevronUp, RotateCcw } from "lucide-react";
+import { SlidersHorizontal, ChevronDown, ChevronUp, Search } from "lucide-react";
 import { useState } from "react";
-import { useData, defaultFilters } from "@/lib/data-context";
+import { useData } from "@/lib/data-context";
 import { Slider } from "@/components/ui/slider";
+import { FilterGroup, pillClass, pillBaseClass } from "@/components/FilterGroup";
+import { cn } from "@/lib/utils";
 import type { Pos, Format, Scoring, Outcome } from "@/lib/types";
 
 const positions: Pos[] = ["QB", "RB", "WR", "TE"];
+// Position color coding — same hue language as the heatmap
+// (QB red · RB emerald · WR blue · TE gold).
+const posStyles: Record<Pos, { active: string; idle: string }> = {
+  QB: { active: "bg-red-600 text-white dark:bg-red-500", idle: "text-red-600 dark:text-red-400 hover:text-red-500" },
+  RB: { active: "bg-emerald-600 text-white dark:bg-emerald-500", idle: "text-emerald-600 dark:text-emerald-400 hover:text-emerald-500" },
+  WR: { active: "bg-blue-600 text-white dark:bg-blue-500", idle: "text-blue-600 dark:text-blue-400 hover:text-blue-500" },
+  TE: { active: "bg-[#d4af37] text-[#0a1628]", idle: "text-[#b99120] dark:text-[#d4af37] hover:opacity-80" },
+};
 const rounds = [1, 2, 3, 4, 5];
-const formats: { value: Format; label: string }[] = [
-  { value: "1qb", label: "1QB" },
-  { value: "sf", label: "Superflex" },
+const formats: { value: Format; label: string; short: string }[] = [
+  { value: "sf", label: "Superflex", short: "SF" },
+  { value: "1qb", label: "1QB", short: "1QB" },
 ];
-const scorings: { value: Scoring; label: string }[] = [
-  { value: "ppr", label: "PPR" },
-  { value: "hppr", label: "Half PPR" },
+const scorings: { value: Scoring; label: string; short: string }[] = [
+  { value: "ppr", label: "PPR", short: "PPR" },
+  { value: "hppr", label: ".5PPR", short: ".5PPR" },
 ];
 const outcomes: { value: Outcome; label: string }[] = [
-  { value: "elite", label: "Top 12" },
-  { value: "starter", label: "Top 24" },
-  { value: "flex", label: "Top 36" },
+  { value: "elite", label: "Top-12" },
+  { value: "starter", label: "Top-24" },
+  { value: "flex", label: "Top-36" },
 ];
 
-function FieldGroup({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div className="flex flex-col gap-1.5">
-      <span className="scff-eyebrow">{label}</span>
-      <div className="flex items-center gap-1.5">{children}</div>
-    </div>
-  );
-}
-
-export function FilterBar() {
-  const { filters, setFilters } = useData();
+export function FilterBar({ activeTab }: { activeTab: string }) {
+  const { filters, setFilters, playerSearch, setPlayerSearch } = useData();
   const [expanded, setExpanded] = useState(true);
+
+  // The Overview tab always spans every position and round, so those filters are hidden.
+  const isOverview = activeTab === "overview";
+  const showPositionFilter = !isOverview;
+  const showRoundFilter = !isOverview;
+  // The player search lives here (in the shared filter header) only on the Players tab.
+  const isPlayers = activeTab === "players";
 
   const activePills: { label: string; onRemove: () => void }[] = [];
 
@@ -49,7 +57,7 @@ export function FilterBar() {
   }
   if (filters.scoring !== "ppr") {
     activePills.push({
-      label: "Half PPR",
+      label: ".5PPR",
       onRemove: () => setFilters((f) => ({ ...f, scoring: "ppr" })),
     });
   }
@@ -59,17 +67,21 @@ export function FilterBar() {
       onRemove: () => setFilters((f) => ({ ...f, outcome: "elite" })),
     });
   }
-  for (const pos of filters.positions) {
-    activePills.push({
-      label: pos,
-      onRemove: () => setFilters((f) => ({ ...f, positions: f.positions.filter((p) => p !== pos) })),
-    });
+  if (showPositionFilter && filters.positions.length < positions.length) {
+    for (const pos of filters.positions) {
+      activePills.push({
+        label: pos,
+        onRemove: () => setFilters((f) => ({ ...f, positions: f.positions.filter((p) => p !== pos) })),
+      });
+    }
   }
-  for (const rd of filters.rounds) {
-    activePills.push({
-      label: `Round ${rd}`,
-      onRemove: () => setFilters((f) => ({ ...f, rounds: f.rounds.filter((r) => r !== rd) })),
-    });
+  if (showRoundFilter && filters.rounds.length < rounds.length) {
+    for (const rd of filters.rounds) {
+      activePills.push({
+        label: `Round ${rd}`,
+        onRemove: () => setFilters((f) => ({ ...f, rounds: f.rounds.filter((r) => r !== rd) })),
+      });
+    }
   }
   if (filters.minGames !== 8) {
     activePills.push({
@@ -80,7 +92,7 @@ export function FilterBar() {
 
   return (
     <div className="bg-card/95 backdrop-blur-md border-b border-border" data-testid="filter-bar">
-      <div className="max-w-[1280px] mx-auto px-4 sm:px-6">
+      <div className="max-w-[1380px] mx-auto px-px">
         <button
           onClick={() => setExpanded(!expanded)}
           className="w-full flex items-center justify-between py-2.5 sm:hidden text-sm font-semibold text-foreground focus-visible:outline-none"
@@ -100,11 +112,29 @@ export function FilterBar() {
           {expanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
         </button>
 
-        <div id="scff-filter-panel" className={`${expanded ? "block" : "hidden sm:block"} py-3.5 space-y-3`}>
-          <div className="flex flex-wrap items-end gap-x-5 gap-y-3">
-            <FieldGroup label="Seasons">
-              <div className="flex items-center gap-2.5 min-w-[200px] pb-1">
-                <span className="text-xs font-semibold tabular-nums text-foreground w-9">{filters.yearStart}</span>
+        <div id="scff-filter-panel" className={`${expanded ? "block" : "hidden sm:block"} py-3.5`}>
+          <div className="flex flex-wrap items-center gap-3">
+            {/* Player search — only on the Players tab, sharing this header strip */}
+            {isPlayers && (
+              <div className="relative flex-1 sm:flex-none sm:w-[248px] min-w-[180px]">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" aria-hidden="true" />
+                <input
+                  type="search"
+                  placeholder="Search players…"
+                  value={playerSearch}
+                  onChange={(e) => setPlayerSearch(e.target.value)}
+                  className="w-full h-10 pl-9 pr-3 rounded-xl bg-[var(--sc-card-soft)] border border-[var(--sc-border)] text-[13px] font-medium text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#d4af37]/40"
+                  aria-label="Search players by name"
+                  data-testid="input-player-search"
+                />
+              </div>
+            )}
+
+            {/* Seasons — dual-range slider inside a matching strip */}
+            <div className="flex items-center gap-2 flex-1 sm:flex-none sm:w-auto min-w-0">
+              <span className="hidden sm:inline text-xs font-bold tracking-[0.02em] text-slate-400/90 flex-shrink-0">Seasons</span>
+              <div className="flex items-center gap-2.5 px-3 h-10 rounded-xl bg-[var(--sc-card-soft)] border border-[var(--sc-border)] w-full sm:w-[248px]">
+                <span className="text-[11px] font-semibold tabular-nums text-foreground w-9 flex-shrink-0">{filters.yearStart}</span>
                 <Slider
                   data-testid="slider-years"
                   min={2017}
@@ -115,139 +145,133 @@ export function FilterBar() {
                   className="flex-1"
                   aria-label="Season range"
                 />
-                <span className="text-xs font-semibold tabular-nums text-foreground w-9">{filters.yearEnd}</span>
+                <span className="text-[11px] font-semibold tabular-nums text-foreground w-9 flex-shrink-0 text-right">{filters.yearEnd}</span>
               </div>
-            </FieldGroup>
+            </div>
 
-            <FieldGroup label="Format">
+            {/* Format: Superflex / 1QB */}
+            <FilterGroup label="Format">
               {formats.map((f) => (
                 <button
-                  key={f.label}
+                  key={f.value}
                   onClick={() => setFilters((prev) => ({ ...prev, format: f.value }))}
-                  data-testid={`button-format-${f.label.toLowerCase()}`}
-                  data-selected={filters.format === f.value}
+                  data-testid={`button-format-${f.value}`}
                   aria-pressed={filters.format === f.value}
-                  className="scff-chip px-2.5 h-8 text-xs"
+                  className={pillClass(filters.format === f.value)}
                 >
-                  {f.label}
+                  <span className="sm:hidden">{f.short}</span>
+                  <span className="hidden sm:inline">{f.label}</span>
                 </button>
               ))}
-            </FieldGroup>
+            </FilterGroup>
 
-            <FieldGroup label="Scoring">
+            {/* Scoring: PPR / Half PPR */}
+            <FilterGroup label="Scoring">
               {scorings.map((s) => (
                 <button
-                  key={s.label}
+                  key={s.value}
                   onClick={() => setFilters((prev) => ({ ...prev, scoring: s.value }))}
-                  data-testid={`button-scoring-${s.label.toLowerCase()}`}
-                  data-selected={filters.scoring === s.value}
+                  data-testid={`button-scoring-${s.value}`}
                   aria-pressed={filters.scoring === s.value}
-                  className="scff-chip px-2.5 h-8 text-xs"
+                  className={pillClass(filters.scoring === s.value)}
                 >
-                  {s.label}
+                  <span className="sm:hidden">{s.short}</span>
+                  <span className="hidden sm:inline">{s.label}</span>
                 </button>
               ))}
-            </FieldGroup>
+            </FilterGroup>
 
-            <FieldGroup label="Outcome">
+            {/* Outcome: Top 12 / Top 24 / Top 36 */}
+            <FilterGroup label="Outcome">
               {outcomes.map((o) => (
                 <button
                   key={o.value}
                   onClick={() => setFilters((prev) => ({ ...prev, outcome: o.value }))}
                   data-testid={`button-outcome-${o.value}`}
-                  data-selected={filters.outcome === o.value}
                   aria-pressed={filters.outcome === o.value}
-                  className="scff-chip px-2.5 h-8 text-xs"
+                  className={pillClass(filters.outcome === o.value)}
                 >
                   {o.label}
                 </button>
               ))}
-            </FieldGroup>
+            </FilterGroup>
 
-            <FieldGroup label="Position">
-              {positions.map((p) => (
-                <button
-                  key={p}
-                  onClick={() =>
-                    setFilters((prev) => ({
-                      ...prev,
-                      positions: prev.positions.includes(p)
-                        ? prev.positions.filter((x) => x !== p)
-                        : [...prev.positions, p],
-                    }))
-                  }
-                  data-testid={`button-pos-${p.toLowerCase()}`}
-                  data-selected={filters.positions.includes(p)}
-                  aria-pressed={filters.positions.includes(p)}
-                  className="scff-chip px-2.5 h-8 text-xs"
-                >
-                  {p}
-                </button>
-              ))}
-            </FieldGroup>
+            {/* Position: QB / RB / WR / TE (multi-select, color-coded; all on by default).
+                Hidden on Overview, which always spans every position. */}
+            {showPositionFilter && (
+              <FilterGroup label="Position">
+                {positions.map((p) => {
+                  const active = filters.positions.includes(p);
+                  return (
+                    <button
+                      key={p}
+                      onClick={() =>
+                        setFilters((prev) => ({
+                          ...prev,
+                          positions: prev.positions.includes(p)
+                            ? prev.positions.filter((x) => x !== p)
+                            : [...prev.positions, p],
+                        }))
+                      }
+                      data-testid={`button-pos-${p.toLowerCase()}`}
+                      aria-pressed={active}
+                      className={cn(
+                        pillBaseClass,
+                        active
+                          ? cn(posStyles[p].active, "border border-[#d4af37]/25")
+                          : posStyles[p].idle,
+                      )}
+                    >
+                      {p}
+                    </button>
+                  );
+                })}
+              </FilterGroup>
+            )}
 
-            <FieldGroup label="Round">
-              {rounds.map((r) => (
-                <button
-                  key={r}
-                  onClick={() =>
-                    setFilters((prev) => ({
-                      ...prev,
-                      rounds: prev.rounds.includes(r)
-                        ? prev.rounds.filter((x) => x !== r)
-                        : [...prev.rounds, r],
-                    }))
-                  }
-                  data-testid={`button-round-${r}`}
-                  data-selected={filters.rounds.includes(r)}
-                  aria-pressed={filters.rounds.includes(r)}
-                  aria-label={`Round ${r}`}
-                  className="scff-chip w-8 h-8 text-xs"
-                >
-                  {r}
-                </button>
-              ))}
-            </FieldGroup>
+            {/* Round: 1–5 (multi-select; all on by default).
+                Hidden on Overview, which always spans every round. */}
+            {showRoundFilter && (
+              <FilterGroup label="Round">
+                {rounds.map((r) => (
+                  <button
+                    key={r}
+                    onClick={() =>
+                      setFilters((prev) => ({
+                        ...prev,
+                        rounds: prev.rounds.includes(r)
+                          ? prev.rounds.filter((x) => x !== r)
+                          : [...prev.rounds, r],
+                      }))
+                    }
+                    data-testid={`button-round-${r}`}
+                    aria-pressed={filters.rounds.includes(r)}
+                    aria-label={`Round ${r}`}
+                    className={pillClass(filters.rounds.includes(r), "sm:w-8 sm:px-0")}
+                  >
+                    {r}
+                  </button>
+                ))}
+              </FilterGroup>
+            )}
 
-            <FieldGroup label="Min Games">
+            {/* Min Games: numeric input inside a matching strip */}
+            <FilterGroup label="Min Games" className="sm:flex-none">
               <input
                 type="number"
+                inputMode="numeric"
                 value={filters.minGames}
                 onChange={(e) => setFilters((f) => ({ ...f, minGames: parseInt(e.target.value) || 1 }))}
-                className="scff-input w-16 h-8 px-2.5 text-xs tabular-nums"
                 min={1}
                 max={17}
                 aria-label="Minimum games played"
                 data-testid="input-min-games"
+                className="w-full min-w-0 flex-1 sm:flex-none sm:w-[52px] h-full bg-transparent px-2 text-[11px] font-semibold tabular-nums text-foreground placeholder:text-muted-foreground/50 focus:outline-none"
               />
-            </FieldGroup>
-          </div>
+              <span className="pr-2 text-[11px] font-semibold text-muted-foreground/60 select-none">games</span>
+            </FilterGroup>
 
-          {activePills.length > 0 && (
-            <div className="flex flex-wrap items-center gap-1.5 pt-1" data-testid="filter-pills">
-              <span className="scff-eyebrow mr-0.5">Active</span>
-              {activePills.map((pill, i) => (
-                <button
-                  key={i}
-                  onClick={pill.onRemove}
-                  className="inline-flex items-center gap-1 pl-2 pr-1.5 py-1 rounded-md text-xs font-semibold bg-accent text-accent-foreground border border-[#d4af37]/30 hover-elevate transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#d4af37]/50"
-                  aria-label={`Remove ${pill.label} filter`}
-                  data-testid={`pill-${pill.label}`}
-                >
-                  {pill.label}
-                  <X className="w-3 h-3 opacity-70" />
-                </button>
-              ))}
-              <button
-                onClick={() => setFilters(defaultFilters)}
-                className="inline-flex items-center gap-1 ml-1 text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors focus-visible:outline-none"
-                data-testid="button-clear-filters"
-              >
-                <RotateCcw className="w-3 h-3" />
-                Clear all
-              </button>
-            </div>
-          )}
+          </div>
         </div>
       </div>
     </div>

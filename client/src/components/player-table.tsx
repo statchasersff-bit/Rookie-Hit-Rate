@@ -1,35 +1,37 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useData } from "@/lib/data-context";
-import { Search, ChevronUp, ChevronDown } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
+import { ChevronUp, ChevronDown, ChevronLeft, ChevronRight } from "lucide-react";
 import { PlayerDrawer } from "./player-drawer";
+import { TeamLogo } from "./team-logo";
+import { PlayerAvatar } from "./player-avatar";
 import type { PlayerSummary } from "@/lib/types";
 
-const hitTypeColors: Record<string, string> = {
-  elite: "bg-[#d4af37]/20 text-[#b8960e] dark:bg-[#d4af37]/30 dark:text-[#d4af37]",
-  starter: "bg-[#0b3a7a]/10 text-[#0b3a7a] dark:bg-[#0b3a7a]/30 dark:text-[#5a9be6]",
-  flex: "bg-[#0b3a7a]/5 text-[#0b3a7a]/70 dark:bg-[#1a3a6a]/30 dark:text-[#8ab4e8]",
-  bust: "bg-[#7a3a3a]/10 text-[#7a3a3a] dark:bg-[#7a3a3a]/20 dark:text-[#d4837a]",
-  too_early: "bg-slate-100 text-slate-500 dark:bg-slate-800/40 dark:text-slate-400",
+// Position colors — same hue language as the heatmap (QB red · RB emerald ·
+// WR blue · TE gold). Text-only, no background highlight.
+const posColors: Record<string, string> = {
+  QB: "text-red-600 dark:text-red-400",
+  RB: "text-emerald-600 dark:text-emerald-400",
+  WR: "text-blue-600 dark:text-blue-400",
+  TE: "text-[#8a6d12] dark:text-[#d4af37]",
 };
 
-const hitTypeLabels: Record<string, string> = {
-  elite: "Elite",
-  starter: "Starter",
-  flex: "Flex",
-  bust: "Bust",
-  too_early: "Too Early",
-};
+type SortField = "player_name" | "pos" | "current_nfl_team" | "rookie_year" | "rookie_round" | "best_finish" | "best_finish_year" | "hit_type" | "breakout_time";
 
-type SortField = "player_name" | "pos" | "current_nfl_team" | "rookie_year" | "rookie_round" | "best_finish" | "hit_type" | "breakout_time";
+// Numeric position-rank pulled from a "RB3 (2019)" best-finish string (Infinity when N/A).
+function parseFinishRank(bestFinish: string): number {
+  const m = bestFinish.match(/(\d+)/);
+  return m ? parseInt(m[1], 10) : Infinity;
+}
 type SortDir = "asc" | "desc";
 
 export function PlayerTable() {
-  const { playerSummaries, filters } = useData();
-  const [search, setSearch] = useState("");
+  const { playerSummaries, filters, playerSearch: search } = useData();
   const [sortField, setSortField] = useState<SortField>("rookie_year");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
   const [selectedPlayer, setSelectedPlayer] = useState<PlayerSummary | null>(null);
+  const [page, setPage] = useState(0);
+
+  const PAGE_SIZE = 50;
 
   const handleSort = (field: SortField) => {
     if (sortField === field) {
@@ -66,7 +68,8 @@ export function PlayerTable() {
         case "current_nfl_team": cmp = a.current_nfl_team.localeCompare(b.current_nfl_team); break;
         case "rookie_year": cmp = a.rookie_year - b.rookie_year; break;
         case "rookie_round": cmp = a.rookie_round - b.rookie_round || a.rookie_pick - b.rookie_pick; break;
-        case "best_finish": cmp = a.best_finish_year - b.best_finish_year; break;
+        case "best_finish": cmp = parseFinishRank(a.best_finish) - parseFinishRank(b.best_finish); break;
+        case "best_finish_year": cmp = a.best_finish_year - b.best_finish_year; break;
         case "hit_type": {
           const order: Record<string, number> = { elite: 0, starter: 1, flex: 2, bust: 3, too_early: 4 };
           cmp = (order[a.hit_type] ?? 5) - (order[b.hit_type] ?? 5); break;
@@ -76,6 +79,16 @@ export function PlayerTable() {
       return sortDir === "asc" ? cmp : -cmp;
     });
   }, [playerSummaries, search, sortField, sortDir, filters]);
+
+  // Reset to the first page whenever the result set changes.
+  useEffect(() => {
+    setPage(0);
+  }, [search, sortField, sortDir, filters]);
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const clampedPage = Math.min(page, totalPages - 1);
+  const pageStart = clampedPage * PAGE_SIZE;
+  const pageRows = filtered.slice(pageStart, pageStart + PAGE_SIZE);
 
   const SortIcon = ({ field }: { field: SortField }) => {
     if (sortField !== field) return null;
@@ -93,45 +106,31 @@ export function PlayerTable() {
       </div>
 
       <div className="flex flex-wrap items-center gap-3">
-        <div className="relative flex-1 min-w-[220px] max-w-sm">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" aria-hidden="true" />
-          <input
-            type="search"
-            placeholder="Search players…"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="scff-input w-full h-10 pl-9 pr-3 text-sm"
-            aria-label="Search players by name"
-            data-testid="input-player-search"
-          />
-        </div>
         <span className="text-xs text-muted-foreground tabular-nums">
           <span className="font-bold text-foreground">{filtered.length}</span> player{filtered.length === 1 ? "" : "s"}
         </span>
       </div>
 
-      <div className="scff-card overflow-hidden p-0">
-        <div className="overflow-x-auto max-h-[70vh] overflow-y-auto">
+      <div className="overflow-x-auto border border-border rounded-md">
         <table className="w-full text-sm">
           <thead className="sticky top-0 z-10">
-            <tr className="bg-secondary/80 backdrop-blur-sm border-b border-border">
+            <tr className="bg-[#0b1634] backdrop-blur-sm border-b border-border">
               {[
                 { field: "player_name" as SortField, label: "Player" },
-                { field: "pos" as SortField, label: "Pos" },
                 { field: "current_nfl_team" as SortField, label: "Team" },
-                { field: "rookie_year" as SortField, label: "Year" },
+                { field: "rookie_year" as SortField, label: "Drafted" },
                 { field: "rookie_round" as SortField, label: "Pick" },
                 { field: "best_finish" as SortField, label: "Best Finish" },
+                { field: "best_finish_year" as SortField, label: "Finish Yr" },
                 { field: "breakout_time" as SortField, label: "Breakout" },
-                { field: "hit_type" as SortField, label: "Status" },
               ].map((col, i) => (
                 <th
                   key={col.field + i}
-                  className={`px-3 py-2.5 text-left text-[10px] uppercase tracking-wider font-bold cursor-pointer select-none transition-colors hover:text-foreground ${sortField === col.field ? "text-foreground" : "text-muted-foreground"} ${i >= 3 ? "text-center" : ""}`}
+                  className={`px-3 py-px text-left text-[10px] uppercase tracking-wider font-bold cursor-pointer select-none transition-colors ${sortField === col.field ? "text-[#d4af37]" : "text-white/70 hover:text-white"} ${i >= 2 ? "text-center" : ""}`}
                   onClick={() => handleSort(col.field)}
                   aria-sort={sortField === col.field ? (sortDir === "asc" ? "ascending" : "descending") : "none"}
                 >
-                  <span className={i >= 3 ? "inline-flex items-center justify-center" : "inline-flex items-center"}>
+                  <span className={i >= 2 ? "inline-flex items-center justify-center" : "inline-flex items-center"}>
                     {col.label}
                     <SortIcon field={col.field} />
                   </span>
@@ -142,7 +141,7 @@ export function PlayerTable() {
           <tbody>
             {filtered.length === 0 && (
               <tr>
-                <td colSpan={8} className="px-4 py-16 text-center">
+                <td colSpan={7} className="px-4 py-16 text-center">
                   <p className="text-sm font-semibold text-foreground">No players match your filters</p>
                   <p className="text-xs text-muted-foreground mt-1">
                     Try widening the season range or clearing position/round filters{search ? " and the search box" : ""}.
@@ -150,40 +149,78 @@ export function PlayerTable() {
                 </td>
               </tr>
             )}
-            {filtered.slice(0, 100).map((player) => (
+            {pageRows.map((player) => (
               <tr
                 key={player.player_id}
                 className="border-t border-border/70 cursor-pointer transition-colors hover:bg-accent/50"
                 onClick={() => setSelectedPlayer(player)}
                 data-testid={`row-player-${player.player_id}`}
               >
-                <td className="px-3 py-2.5 font-semibold text-[#0b1634] dark:text-white whitespace-nowrap">{player.player_name}</td>
-                <td className="px-3 py-2.5">
-                  <span className="text-xs font-semibold">{player.pos}</span>
+                <td className="px-3 py-px font-semibold text-[#0b1634] dark:text-white whitespace-nowrap">
+                  <span className="inline-flex items-center gap-2">
+                    <PlayerAvatar playerId={player.player_id} playerName={player.player_name} />
+                    {player.player_name}
+                  </span>
                 </td>
-                <td className="px-3 py-2.5 text-xs text-muted-foreground">{player.current_nfl_team}</td>
-                <td className="px-3 py-2.5 tabular-nums text-center">{player.rookie_year}</td>
-                <td className="px-3 py-2.5 tabular-nums text-center">{player.rookie_round}.{String(player.rookie_pick).padStart(2, "0")}</td>
-                <td className="px-3 py-2.5 text-xs text-center">{player.best_finish}</td>
-                <td className="px-3 py-2.5 tabular-nums text-xs text-center">
+                <td className="px-3 py-px text-xs text-muted-foreground">
+                  <TeamLogo team={player.current_nfl_team} />
+                </td>
+                <td className="px-3 py-px tabular-nums text-xs text-center text-muted-foreground">{player.rookie_year}</td>
+                <td className="px-3 py-px tabular-nums text-xs text-center text-muted-foreground">{player.rookie_round}.{String(player.rookie_pick).padStart(2, "0")}</td>
+                <td className="px-3 py-px text-xs text-center">
+                  {player.best_finish === "N/A" ? (
+                    <span className="text-muted-foreground">—</span>
+                  ) : (
+                    <span className={`font-semibold ${posColors[player.pos] || "text-foreground"}`}>
+                      {player.best_finish.split(" (")[0]}
+                    </span>
+                  )}
+                </td>
+                <td className="px-3 py-px tabular-nums text-xs text-center text-muted-foreground">
+                  {player.best_finish === "N/A" ? "—" : player.best_finish_year}
+                </td>
+                <td className="px-3 py-px tabular-nums text-xs text-center">
                   {player.breakout_time ? `Year ${player.breakout_time}` : "—"}
-                </td>
-                <td className="px-3 py-2.5 text-center">
-                  <Badge variant="secondary" className={`text-[10px] ${hitTypeColors[player.hit_type]}`}>
-                    {hitTypeLabels[player.hit_type] || player.hit_type}
-                  </Badge>
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
         </div>
-        {filtered.length > 100 && (
-          <div className="px-3 py-2.5 text-xs text-muted-foreground bg-secondary/50 border-t border-border text-center">
-            Showing first <span className="font-semibold text-foreground tabular-nums">100</span> of <span className="font-semibold text-foreground tabular-nums">{filtered.length}</span> — refine filters to narrow the list.
+        {filtered.length > 0 && (
+          <div className="flex items-center justify-between gap-3 px-3 py-2 text-xs text-muted-foreground bg-secondary/50 border-t border-border">
+            <span>
+              Showing{" "}
+              <span className="font-semibold text-foreground tabular-nums">{pageStart + 1}–{Math.min(pageStart + PAGE_SIZE, filtered.length)}</span>{" "}
+              of <span className="font-semibold text-foreground tabular-nums">{filtered.length}</span>
+            </span>
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => setPage((p) => Math.max(0, p - 1))}
+                disabled={clampedPage === 0}
+                className="inline-flex items-center gap-1 px-2 py-1 rounded-md border border-border font-medium transition-colors hover:bg-accent disabled:opacity-40 disabled:pointer-events-none focus-visible:outline-none"
+                data-testid="button-page-prev"
+                aria-label="Previous page"
+              >
+                <ChevronLeft className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Prev</span>
+              </button>
+              <span className="px-2 tabular-nums">
+                Page <span className="font-semibold text-foreground">{clampedPage + 1}</span> / {totalPages}
+              </span>
+              <button
+                onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
+                disabled={clampedPage >= totalPages - 1}
+                className="inline-flex items-center gap-1 px-2 py-1 rounded-md border border-border font-medium transition-colors hover:bg-accent disabled:opacity-40 disabled:pointer-events-none focus-visible:outline-none"
+                data-testid="button-page-next"
+                aria-label="Next page"
+              >
+                <span className="hidden sm:inline">Next</span>
+                <ChevronRight className="w-3.5 h-3.5" />
+              </button>
+            </div>
           </div>
         )}
-      </div>
 
       {selectedPlayer && (
         <PlayerDrawer player={selectedPlayer} onClose={() => setSelectedPlayer(null)} />

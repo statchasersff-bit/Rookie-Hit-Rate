@@ -1,7 +1,9 @@
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { PickRangeHeatmap } from "@/components/pick-range-heatmap";
+import { SnapshotStat } from "@/components/SnapshotStat";
 import { useData } from "@/lib/data-context";
-import { Crown, TrendingDown, Zap, ShieldAlert, BarChart3, Sparkles, Target, ArrowDownRight } from "lucide-react";
+import { Crown, TrendingDown, Zap, ShieldAlert, Target, ArrowDownRight } from "lucide-react";
+import type { KpiAccent } from "@/lib/kpiCardStyle";
 import type { PickRangeCohortSummary } from "@/lib/types";
 
 interface PickRangeInsight {
@@ -10,45 +12,21 @@ interface PickRangeInsight {
   stat: string;
   body: string;
   tone: "positive" | "negative" | "neutral";
+  accent: KpiAccent;
 }
 
-function generateHeadline(cohorts: PickRangeCohortSummary[], yearStart: number, yearEnd: number): string | null {
-  if (cohorts.length === 0) return null;
-
-  const rd1Top = cohorts.filter((c) => c.rookie_round === 1 && c.pickStart === 1 && c.total >= 5);
-  const rd1Bottom = cohorts.filter((c) => c.rookie_round === 1 && c.pickStart === 10 && c.total >= 5);
-
-  if (rd1Top.length > 0 && rd1Bottom.length > 0) {
-    const topAvg = rd1Top.reduce((s, c) => s + c.hit_rate, 0) / rd1Top.length;
-    const botAvg = rd1Bottom.reduce((s, c) => s + c.hit_rate, 0) / rd1Bottom.length;
-    if (topAvg > botAvg + 0.15) {
-      return `Picks 1.01-1.03 hit at ${(topAvg * 100).toFixed(0)}% vs. ${(botAvg * 100).toFixed(0)}% for picks 1.10-1.12 since ${yearStart}. Where you draft in the round matters.`;
-    }
-  }
-
-  const best = cohorts.filter((c) => c.total >= 5).sort((a, b) => b.hit_rate - a.hit_rate)[0];
-  if (best) {
-    return `Picks ${best.rangeLabel} have the highest hit rate at ${(best.hit_rate * 100).toFixed(0)}% (${best.hits}/${best.total}) since ${yearStart}.`;
-  }
-
-  return null;
-}
+const toneContextColor: Record<PickRangeInsight["tone"], string> = {
+  positive: "text-emerald-400",
+  negative: "text-rose-400",
+  neutral: "text-slate-400",
+};
 
 function generateInsights(cohorts: PickRangeCohortSummary[], outcomeName: string): PickRangeInsight[] {
   if (cohorts.length < 2) return [];
   const insights: PickRangeInsight[] = [];
+  // Sample-size floor: tiny pick-range cohorts would distort the best/worst
+  // rankings below. (The Overall Hit Rate headline lives on the Overview card.)
   const withData = cohorts.filter((c) => c.total >= 3);
-
-  const totalPlayers = withData.reduce((s, c) => s + c.total, 0);
-  const totalHits = withData.reduce((s, c) => s + c.hits, 0);
-  const overallRate = totalPlayers > 0 ? totalHits / totalPlayers : 0;
-  insights.push({
-    icon: BarChart3,
-    title: "Overall Hit Rate",
-    stat: `${(overallRate * 100).toFixed(1)}%`,
-    body: `${totalHits} of ${totalPlayers} rookies achieved a ${outcomeName.toLowerCase()} finish across all pick ranges.`,
-    tone: overallRate > 0.3 ? "positive" : overallRate > 0.15 ? "neutral" : "negative",
-  });
 
   if (withData.length > 0) {
     const best = withData.reduce((a, b) => (b.hit_rate > a.hit_rate ? b : a));
@@ -56,8 +34,9 @@ function generateInsights(cohorts: PickRangeCohortSummary[], outcomeName: string
       icon: Crown,
       title: "Best Pick Range",
       stat: `${(best.hit_rate * 100).toFixed(1)}%`,
-      body: `${best.pos} picks ${best.rangeLabel} (${best.hits}/${best.total}).${best.elite_rate > 0.2 ? ` ${(best.elite_rate * 100).toFixed(0)}% reach elite.` : ""}`,
+      body: `${best.pos} picks ${best.rangeLabel} (${best.hits}/${best.total}).${best.elite_rate > 0.2 ? ` ${(best.elite_rate * 100).toFixed(0)}% reach Top-12.` : ""}`,
       tone: "positive",
+      accent: "emerald",
     });
   }
 
@@ -77,6 +56,7 @@ function generateInsights(cohorts: PickRangeCohortSummary[], outcomeName: string
           stat: `${diff > 0 ? "+" : ""}${(diff * 100).toFixed(0)}pp`,
           body: `Picks ${round}.01-${round}.03 hit at ${(topRate * 100).toFixed(0)}% vs ${(lateRate * 100).toFixed(0)}% for ${round}.10-${round}.12.`,
           tone: diff > 0.2 ? "negative" : "neutral",
+          accent: "violet",
         });
         break;
       }
@@ -94,6 +74,7 @@ function generateInsights(cohorts: PickRangeCohortSummary[], outcomeName: string
       stat: `${(top.hit_by_year.year1 * 100).toFixed(0)}% Year 1`,
       body: `${top.pos} picks ${top.rangeLabel} — most hits break out immediately as rookies.`,
       tone: "positive",
+      accent: "gold",
     });
   }
 
@@ -108,6 +89,7 @@ function generateInsights(cohorts: PickRangeCohortSummary[], outcomeName: string
       stat: `${(highBust[0].bust_rate * 100).toFixed(0)}%+`,
       body: `${names}. Pick placement within the round matters.`,
       tone: "negative",
+      accent: "red",
     });
   }
 
@@ -119,6 +101,7 @@ function generateInsights(cohorts: PickRangeCohortSummary[], outcomeName: string
       stat: `${((1 - worst.hit_rate) * 100).toFixed(0)}% Miss`,
       body: `${worst.pos} picks ${worst.rangeLabel} — only ${worst.hits}/${worst.total} ever hit at ${outcomeName.toLowerCase()} level.`,
       tone: "negative",
+      accent: "rose",
     });
   }
 
@@ -127,89 +110,35 @@ function generateInsights(cohorts: PickRangeCohortSummary[], outcomeName: string
 
 export default function PickRange() {
   const { pickRangeCohorts, filters } = useData();
-  const outcomeName = filters.outcome === "elite" ? "Elite" : filters.outcome === "starter" ? "Starter" : "Flex";
-  const [focusRound, setFocusRound] = useState<number | null>(null);
-
-  const validRounds = filters.rounds.length > 0 ? [1, 2, 3, 4, 5].filter((r) => filters.rounds.includes(r)) : [1, 2, 3, 4, 5];
-  const effectiveFocusRound = focusRound !== null && validRounds.includes(focusRound) ? focusRound : null;
+  const outcomeName = filters.outcome === "elite" ? "Top-12" : filters.outcome === "starter" ? "Top-24" : "Top-36";
 
   const insights = useMemo(
     () => generateInsights(pickRangeCohorts, outcomeName),
     [pickRangeCohorts, outcomeName]
   );
 
-  const headline = useMemo(
-    () => generateHeadline(pickRangeCohorts, filters.yearStart, filters.yearEnd),
-    [pickRangeCohorts, filters.yearStart, filters.yearEnd]
-  );
-
   return (
     <div className="space-y-6" data-testid="page-pick-range">
-      <PickRangeHeatmap focusRound={effectiveFocusRound} onFocusRoundChange={setFocusRound} />
-
-      {headline && (
-        <div
-          className="flex items-start gap-3 rounded-xl border border-[#d4af37]/35 bg-accent/60 px-4 py-3.5 shadow-card"
-          data-testid="headline-banner"
-          aria-live="polite"
-        >
-          <span className="grid place-items-center h-7 w-7 shrink-0 rounded-lg bg-[#d4af37]/20 text-[#b99120] dark:text-[#d4af37]">
-            <Sparkles className="w-4 h-4" />
-          </span>
-          <div>
-            <span className="scff-eyebrow text-[#b99120] dark:text-[#d4af37]">Key takeaway</span>
-            <p className="text-sm font-semibold text-[#0b1634] dark:text-white leading-snug mt-0.5">
-              {headline}
-            </p>
-          </div>
-        </div>
-      )}
-
       {insights.length > 0 && (
         <div data-testid="pick-range-analysis">
-          <span className="scff-eyebrow">Breakdown</span>
-          <h3 className="scff-title text-lg text-[#0b1634] dark:text-white mt-0.5">Analysis</h3>
-          <div className="scff-accent-bar scff-accent-bar--sm mt-1.5 mb-3" />
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {insights.map((insight, idx) => {
-              const Icon = insight.icon;
-              const toneClasses =
-                insight.tone === "positive"
-                  ? "border border-emerald-200 dark:border-emerald-800/40 bg-emerald-50/60 dark:bg-emerald-950/20 shadow-card"
-                  : insight.tone === "negative"
-                    ? "border border-red-200 dark:border-red-800/40 bg-red-50/60 dark:bg-red-950/20 shadow-card"
-                    : "scff-card";
-              const iconColor =
-                insight.tone === "positive"
-                  ? "text-emerald-600 dark:text-emerald-400"
-                  : insight.tone === "negative"
-                    ? "text-red-500 dark:text-red-400"
-                    : "text-[#0b3a7a] dark:text-[#d4af37]";
-              const statColor =
-                insight.tone === "positive"
-                  ? "text-emerald-700 dark:text-emerald-300"
-                  : insight.tone === "negative"
-                    ? "text-red-600 dark:text-red-400"
-                    : "text-[#0b3a7a] dark:text-[#d4af37]";
-
-              return (
-                <div
-                  key={idx}
-                  className={`rounded-xl p-3.5 ${toneClasses}`}
-                  data-testid={`pick-range-insight-${idx}`}
-                >
-                  <div className="flex items-center gap-2 mb-1.5">
-                    <Icon className={`h-4 w-4 shrink-0 ${iconColor}`} aria-hidden="true" />
-                    <span className="scff-eyebrow">{insight.title}</span>
-                  </div>
-                  <div className={`text-2xl font-[850] tracking-tight tabular-nums ${statColor}`}>{insight.stat}</div>
-                  <p className="text-xs text-muted-foreground leading-relaxed mt-1">{insight.body}</p>
-                </div>
-              );
-            })}
+          <div className="grid grid-cols-2 gap-2 min-[521px]:gap-3 min-[521px]:[grid-template-columns:repeat(auto-fit,minmax(200px,1fr))] md:[grid-template-columns:repeat(auto-fit,minmax(240px,1fr))]">
+            {insights.map((insight, idx) => (
+              <SnapshotStat
+                key={idx}
+                label={insight.title}
+                value={insight.stat}
+                context={insight.body}
+                contextColor={toneContextColor[insight.tone]}
+                icon={insight.icon}
+                accent={insight.accent}
+                testId={`pick-range-insight-${idx}`}
+              />
+            ))}
           </div>
         </div>
       )}
+
+      <PickRangeHeatmap />
     </div>
   );
 }

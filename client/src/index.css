@@ -137,6 +137,12 @@
 
   --destructive-border: hsl(var(--destructive));
   --destructive-border: hsl(from hsl(var(--destructive)) h s calc(l + var(--opaque-button-border-intensity)) / alpha);
+
+  /* Filter bar (segmented pill) tokens */
+  --sc-card-soft: #f1f5f9;
+  --sc-blue: #0b3978;
+  --sc-text-muted: #64748b;
+  --sc-border: rgba(148, 163, 184, 0.18);
 }
 
 .dark {
@@ -213,6 +219,12 @@
 
   --destructive-border: hsl(var(--destructive));
   --destructive-border: hsl(from hsl(var(--destructive)) h s calc(l + var(--opaque-button-border-intensity)) / alpha);
+
+  /* Filter bar (segmented pill) tokens */
+  --sc-card-soft: rgba(255, 255, 255, 0.03);
+  --sc-blue: #0b3978;
+  --sc-text-muted: #64748b;
+  --sc-border: rgba(255, 255, 255, 0.06);
 }
 
 /* =====================================================================
@@ -417,6 +429,61 @@
   .border.hover-elevate:not(.no-hover-interaction-elevate)::after {
     inset: -1px;
   }
+}
+
+/* =====================================================================
+   Premium KPI tiles (SnapshotStat) — theme-aware.
+   Light (default): soft white surface on the StatChasers palette with a
+   faint accent glow. Dark (.dark): navy premium surface.
+   Plain top-level CSS so it is never tree-shaken by the Tailwind purge.
+   ===================================================================== */
+.sc-premium-kpi {
+  position: relative;
+  overflow: hidden;
+  /* Light-mode surface */
+  background: linear-gradient(135deg, #ffffff, #f8fafc);
+  border: 1px solid var(--stc-border, #e2e8f0);
+  box-shadow: var(--stc-shadow-card, 0 1px 2px rgba(15, 23, 42, .04), 0 8px 24px rgba(15, 23, 42, .05));
+  transition: transform 160ms ease, border-color 160ms ease, box-shadow 160ms ease;
+}
+.sc-premium-kpi::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at 12% 28%, var(--kpi-glow, rgba(37, 99, 235, 0.10)), transparent 40%);
+  pointer-events: none;
+}
+.sc-premium-kpi:hover {
+  transform: translateY(-2px);
+  border-color: rgba(15, 23, 42, 0.14);
+  box-shadow: var(--stc-shadow-pop, 0 4px 12px rgba(15, 23, 42, .08), 0 16px 40px rgba(15, 23, 42, .12));
+}
+.sc-premium-kpi-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  background: var(--kpi-icon-bg, rgba(37, 99, 235, 0.14));
+  border: 1px solid var(--kpi-icon-border, rgba(96, 165, 250, 0.14));
+  color: var(--kpi-icon-light, #2563eb);
+}
+
+/* Dark-mode surface — the original navy premium look */
+.dark .sc-premium-kpi {
+  background: linear-gradient(135deg, rgba(20, 28, 42, 0.98), rgba(14, 20, 31, 0.98));
+  border-color: rgba(96, 165, 250, 0.12);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.04),
+    0 14px 30px rgba(0, 0, 0, 0.22);
+}
+.dark .sc-premium-kpi:hover {
+  border-color: rgba(96, 165, 250, 0.28);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.05),
+    0 18px 38px rgba(0, 0, 0, 0.28);
+}
+.dark .sc-premium-kpi-icon {
+  color: var(--kpi-icon, #60a5fa);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
 }
 
 /* Respect users who prefer reduced motion */

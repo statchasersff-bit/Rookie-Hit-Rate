@@ -12,9 +12,9 @@ const hitTypeColors: Record<string, string> = {
 };
 
 const hitTypeLabels: Record<string, string> = {
-  elite: "Elite",
-  starter: "Starter",
-  flex: "Flex",
+  elite: "Top-12",
+  starter: "Top-24",
+  flex: "Top-36",
   bust: "Bust",
   too_early: "Too Early",
 };
