@@ -3,14 +3,7 @@ import { useData } from "@/lib/data-context";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { MousePointerClick } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Cell, LabelList, Tooltip as RechartsTooltip } from "recharts";
-import type { CohortSummary, Pos } from "@/lib/types";
-
-const posColors: Record<Pos, string> = {
-  QB: "bg-red-600 text-white dark:bg-red-500",
-  RB: "bg-emerald-600 text-white dark:bg-emerald-500",
-  WR: "bg-blue-600 text-white dark:bg-blue-500",
-  TE: "bg-[#d4af37] text-[#0a1628] dark:bg-[#d4af37]",
-};
+import type { CohortSummary } from "@/lib/types";
 
 export function PickLensCard() {
   const { cohorts, hoveredCell, selectedCell, filters } = useData();
@@ -29,7 +22,7 @@ export function PickLensCard() {
           <div className="grid place-items-center h-10 w-10 rounded-full bg-accent text-[#b99120] dark:text-[#d4af37] mb-2">
             <MousePointerClick className="w-5 h-5" />
           </div>
-          <p className="text-sm font-semibold text-foreground">Pick Lens</p>
+          <p className="text-sm font-semibold text-foreground">Best Finish</p>
           <p className="text-xs text-muted-foreground mt-1">
             Hover or tap any cell in the grid to break down that cohort's outcomes.
           </p>
@@ -48,89 +41,80 @@ export function PickLensCard() {
   const lowSample = cohort.total < 10;
 
   return (
-    <Card className="shadow-card h-full w-full flex flex-col" data-testid="pick-lens-card">
-      <CardHeader className="pb-1.5 px-3.5 pt-3.5">
-        <div>
-          <span className="scff-eyebrow">Pick Lens</span>
-          <div className="flex items-center gap-2 mt-1">
-            <span className={`inline-flex items-center justify-center px-1.5 py-0.5 text-[10px] font-bold rounded-md ${posColors[cohort.pos as Pos] || ""}`}>
-              {cohort.pos}
-            </span>
-            <h3 className="text-sm font-bold text-[#0b1634] dark:text-white">
-              {cohort.pos} · Round {cohort.rookie_round}
-            </h3>
+    <div className="flex flex-row min-[500px]:flex-col gap-2 h-full w-full" data-testid="pick-lens-card">
+      <Card className="shadow-card flex-1 min-w-0 min-[500px]:flex-none">
+        <CardHeader className="pb-1 px-1 pt-2">
+          <div className="flex items-center justify-between gap-2">
+            <span className="scff-eyebrow ml-1">Best Finish</span>
+            <div className="flex items-center gap-2">
+              {lowSample && (
+                <span className="text-[10px] font-semibold text-amber-600 dark:text-amber-400">
+                  Low sample
+                </span>
+              )}
+            </div>
           </div>
-          <p className="text-[11px] text-muted-foreground mt-1 tabular-nums">
-            {filters.yearStart}–{filters.yearEnd} · {cohort.total} players
-          </p>
-          {lowSample && (
-            <div className="mt-1.5 inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold bg-amber-400/15 text-amber-700 dark:text-amber-300 border border-amber-400/40">
-              Low sample · Directional only
+        </CardHeader>
+        <CardContent className="px-1 pb-2">
+          <div className="grid grid-cols-2 gap-1.5">
+            <StatBlock label="Top-12" value={`${(cohort.elite_rate * 100).toFixed(1)}%`} accent />
+            <StatBlock label="13-24" value={`${(cohort.starter_rate * 100).toFixed(1)}%`} />
+            <StatBlock label="25-36" value={`${(cohort.flex_rate * 100).toFixed(1)}%`} />
+            <StatBlock label="Bust" value={`${(cohort.bust_rate * 100).toFixed(1)}%`} negative />
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card className="shadow-card flex-1 min-w-0 flex flex-col">
+        <CardContent className="px-1 py-2 space-y-1.5 flex-1 flex flex-col">
+          <div className="flex-1 flex flex-col min-h-0">
+            <h4 className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold mb-1.5 ml-1">
+              {outcomeName} Hit by Year
+            </h4>
+            {/* On mobile the aside stacks (flex-col) with no definite-height
+                ancestor, so ResponsiveContainer's height="100%" is circular and
+                the chart inflates on first paint — a huge blank gap under the
+                Overview tab inside the auto-resizing WP iframe that only settles
+                on a re-measure (e.g. a tab switch). Pin a fixed height on mobile;
+                keep the flex-fill on desktop where the aside stretches to the
+                table height and gives a real definite height. */}
+            <div className="h-24 min-h-[40px] min-[500px]:h-auto min-[500px]:flex-1">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={hitByYearData} barCategoryGap="12%" margin={{ top: 14, right: 0, left: 0, bottom: 0 }}>
+                  <XAxis dataKey="name" tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
+                  <YAxis domain={[0, 1]} hide />
+                  <RechartsTooltip formatter={(v: number) => `${(v * 100).toFixed(1)}%`} labelFormatter={(l: string) => l} />
+                  <Bar dataKey="value" radius={[4, 4, 0, 0]} barSize={28}>
+                    {hitByYearData.map((entry, idx) => (
+                      <Cell key={idx} fill={entry.fill} />
+                    ))}
+                    <LabelList dataKey="value" position="top" formatter={(v: number) => `${(v * 100).toFixed(0)}%`} style={{ fontSize: 9, fontWeight: 700, fill: "var(--foreground)" }} />
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+
+          {filters.showConfidence && (
+            <div className="text-[10px] text-muted-foreground bg-muted/50 rounded-md p-2">
+              <span className="font-medium">95% CI:</span>{" "}
+              {(cohort.ci_lower * 100).toFixed(1)}% – {(cohort.ci_upper * 100).toFixed(1)}%
+              {cohort.ci_width > 0.4 && (
+                <span className="ml-1 text-amber-500 dark:text-amber-400">(low confidence)</span>
+              )}
             </div>
           )}
-        </div>
-      </CardHeader>
-      <CardContent className="px-3.5 pb-3.5 space-y-2.5 flex-1 flex flex-col">
-        <div className="grid grid-cols-2 gap-1.5">
-          <StatBlock label="Top-12" value={`${(cohort.elite_rate * 100).toFixed(1)}%`} accent />
-          <StatBlock label="Top-24" value={`${(cohort.starter_rate * 100).toFixed(1)}%`} />
-          <StatBlock label="Top-36" value={`${(cohort.flex_rate * 100).toFixed(1)}%`} />
-          <StatBlock label="Bust" value={`${(cohort.bust_rate * 100).toFixed(1)}%`} negative />
-        </div>
-
-        <div className="flex items-center justify-between rounded-md bg-muted/30 dark:bg-muted/20 px-2.5 py-1.5">
-          <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Med. Breakout</span>
-          <span className="text-sm font-bold tabular-nums text-[#0b3a7a] dark:text-white">
-            {cohort.median_breakout ? `Yr ${cohort.median_breakout.toFixed(1)}` : "N/A"}
-          </span>
-        </div>
-
-        <div className="text-[11px] text-muted-foreground text-center tabular-nums">
-          <span className="text-[#b99120] dark:text-[#d4af37] font-semibold">{cohort.elite_hits} Top-12</span>
-          {" · "}{cohort.starter_hits} Top-24{" · "}{cohort.flex_hits} Top-36{" · "}
-          <span className="text-red-500 dark:text-red-400">{cohort.bust_count} bust</span>
-        </div>
-
-        <div className="flex-1 flex flex-col min-h-0">
-          <h4 className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold mb-1.5">
-            {outcomeName} Hit by Year
-          </h4>
-          <div className="flex-1 min-h-[96px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={hitByYearData} barCategoryGap="15%">
-                <XAxis dataKey="name" tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fontSize: 10 }} axisLine={false} tickLine={false} tickFormatter={(v: number) => `${(v * 100).toFixed(0)}%`} domain={[0, 1]} />
-                <RechartsTooltip formatter={(v: number) => `${(v * 100).toFixed(1)}%`} labelFormatter={(l: string) => l} />
-                <Bar dataKey="value" radius={[4, 4, 0, 0]} barSize={28}>
-                  {hitByYearData.map((entry, idx) => (
-                    <Cell key={idx} fill={entry.fill} />
-                  ))}
-                  <LabelList dataKey="value" position="top" formatter={(v: number) => `${(v * 100).toFixed(0)}%`} style={{ fontSize: 9, fontWeight: 700, fill: "var(--foreground)" }} />
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-
-        {filters.showConfidence && (
-          <div className="text-[10px] text-muted-foreground bg-muted/50 rounded-md p-2">
-            <span className="font-medium">95% CI:</span>{" "}
-            {(cohort.ci_lower * 100).toFixed(1)}% – {(cohort.ci_upper * 100).toFixed(1)}%
-            {cohort.ci_width > 0.4 && (
-              <span className="ml-1 text-amber-500 dark:text-amber-400">(low confidence)</span>
-            )}
-          </div>
-        )}
-      </CardContent>
-    </Card>
+        </CardContent>
+      </Card>
+    </div>
   );
 }
 
 function StatBlock({ label, value, accent, negative }: { label: string; value: string; accent?: boolean; negative?: boolean }) {
   return (
-    <div className="bg-muted/30 dark:bg-muted/20 rounded-md px-2 py-1.5 text-center">
+    <div className="bg-muted/30 dark:bg-muted/20 rounded-md px-1 py-0.5 text-center">
       <div
-        className={`text-lg font-bold tabular-nums leading-none ${
+        className={`text-[clamp(11px,2.3cqw,16px)] font-bold tabular-nums leading-none ${
           accent
             ? "text-[#d4af37]"
             : negative
@@ -140,7 +124,7 @@ function StatBlock({ label, value, accent, negative }: { label: string; value: s
       >
         {value}
       </div>
-      <div className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium mt-0.5">{label}</div>
+      <div className="text-[clamp(7px,1.45cqw,10px)] uppercase tracking-wider text-muted-foreground font-medium mt-0.5">{label}</div>
     </div>
   );
 }

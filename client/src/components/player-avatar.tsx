@@ -31,7 +31,7 @@ export function PlayerAvatar({ playerId, playerName, className = "" }: PlayerAva
 
   return (
     <span
-      className={`inline-grid place-items-center h-6 w-6 shrink-0 overflow-hidden rounded-full bg-muted ring-1 ring-black/5 dark:ring-white/10 ${className}`}
+      className={`inline-grid place-items-center h-[calc(var(--rhr-fs,14px)*1.714)] w-[calc(var(--rhr-fs,14px)*1.714)] shrink-0 overflow-hidden rounded-full bg-muted ring-1 ring-black/5 dark:ring-white/10 ${className}`}
       aria-hidden="true"
     >
       {showImg ? (
@@ -45,7 +45,7 @@ export function PlayerAvatar({ playerId, playerName, className = "" }: PlayerAva
           className="h-full w-full object-cover object-top"
         />
       ) : (
-        <span className="text-[9px] font-bold text-muted-foreground">{initials(playerName)}</span>
+        <span className="text-[calc(var(--rhr-fs,14px)*0.643)] font-bold text-muted-foreground">{initials(playerName)}</span>
       )}
     </span>
   );

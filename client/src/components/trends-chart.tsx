@@ -1,15 +1,23 @@
-import { useMemo, useState } from "react";
+import { Fragment, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useData } from "@/lib/data-context";
-import { computeTrends, type TrendPoint } from "@/lib/cohort";
-import {
-  LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend,
-  ReferenceLine, CartesianGrid,
-} from "recharts";
-import { Switch } from "@/components/ui/switch";
+import { computeTrends, type TrendPoint, LATEST_SEASON_WITH_DATA } from "@/lib/cohort";
 import { SnapshotStat } from "@/components/SnapshotStat";
-import { TrendingUp, TrendingDown, Minus, BarChart3, Target, AlertTriangle, Trophy, Calendar, Gauge } from "lucide-react";
+import { PlayerAvatar } from "@/components/player-avatar";
+import { TrendingUp, TrendingDown, Target, AlertTriangle, Trophy, ChevronRight, ChevronUp, ChevronDown, ChevronsUpDown } from "lucide-react";
+import { cn } from "@/lib/utils";
 import type { KpiAccent } from "@/lib/kpiCardStyle";
-import type { Pos } from "@/lib/types";
+import type { Outcome, Pos } from "@/lib/types";
+import {
+  AVATAR_GAP,
+  PAD_LEFT,
+  PAD_RIGHT_NORMAL,
+  PAD_RIGHT_TIGHT,
+  buildLadder,
+  chooseLayout,
+  sameLayout,
+  type BoardLayout,
+  type RoundWidth,
+} from "@/lib/draftBoardLayout";
 
 const posLineColors: Record<Pos, string> = {
   QB: "#dc2626",
@@ -18,7 +26,6 @@ const posLineColors: Record<Pos, string> = {
   TE: "#d4af37",
 };
 
-type ViewMode = "yearly" | "rolling3" | "cumulative";
 
 interface Insight {
   icon: typeof TrendingUp;
@@ -29,140 +36,414 @@ interface Insight {
   accent: KpiAccent;
 }
 
+// All featured-card bodies use the same light gray as the card titles
+// (matches SnapshotStat's label color), regardless of the insight's tone.
 const toneContextColor: Record<Insight["tone"], string> = {
-  positive: "text-emerald-400",
-  negative: "text-rose-400",
-  neutral: "text-slate-400",
+  positive: "text-slate-500 dark:text-slate-400",
+  negative: "text-slate-500 dark:text-slate-400",
+  neutral: "text-slate-500 dark:text-slate-400",
 };
 
-function getStabilityScore(stdDev: number): { score: number; label: string; color: string } {
-  const score = Math.max(0, Math.min(100, Math.round((1 - stdDev / 0.5) * 100)));
-  if (score >= 70) return { score, label: "Stable", color: "text-emerald-600 dark:text-emerald-400" };
-  if (score >= 40) return { score, label: "Moderate", color: "text-amber-500 dark:text-amber-400" };
-  return { score, label: "Volatile", color: "text-red-500 dark:text-red-400" };
-}
-
-function getStabilityBarColor(score: number): string {
-  if (score >= 70) return "bg-emerald-500";
-  if (score >= 40) return "bg-amber-400";
-  return "bg-red-500";
-}
+type PosAgg = { pos: Pos; hits: number; n: number; hitRate: number };
 
 function generateInsights(
   data: TrendPoint[],
-  label: string,
+  byPosition: PosAgg[],
   outcomeName: string
 ): Insight[] {
-  if (data.length < 2) return [];
+  if (data.length < 1) return [];
   const insights: Insight[] = [];
-  const rates = data.map((d) => d.hitRate);
-  const avg = rates.reduce((a, b) => a + b, 0) / rates.length;
-  const total = data.reduce((a, d) => a + d.n, 0);
 
+  // Best / worst draft class (by year, pooled across the selected positions & rounds).
+  const best = data.reduce((a, b) => (b.hitRate > a.hitRate ? b : a));
   insights.push({
-    icon: BarChart3,
-    title: "Overall Average",
-    stat: `${(avg * 100).toFixed(1)}%`,
-    body: `${data.length} classes, ${total} players. ${label} produce a ${outcomeName.toLowerCase()} at this rate.`,
-    tone: avg > 0.4 ? "positive" : avg > 0.2 ? "neutral" : "negative",
-    accent: "blue",
+    icon: Trophy,
+    title: "Best Overall Class",
+    stat: `${(best.hitRate * 100).toFixed(0)}% (${best.year})`,
+    body: `${best.hits}/${best.n} players hit ${outcomeName.toLowerCase()}.${best.n < 5 ? " (Small sample)" : ""}`,
+    tone: "positive",
+    accent: "emerald",
   });
 
-  const best = data.reduce((a, b) => (b.hitRate > a.hitRate ? b : a));
-  if (best.hitRate > 0) {
-    insights.push({
-      icon: Trophy,
-      title: "Best Class",
-      stat: `${(best.hitRate * 100).toFixed(0)}% (${best.year})`,
-      body: `${best.hits}/${best.n} players hit.${best.n < 5 ? " (Small sample)" : ""}`,
-      tone: "positive",
-      accent: "emerald",
-    });
-  }
-
   const worst = data.reduce((a, b) => (b.hitRate < a.hitRate ? b : a));
-  if (worst.hitRate < best.hitRate) {
+  if (worst.year !== best.year) {
     insights.push({
       icon: AlertTriangle,
-      title: "Weakest Class",
+      title: "Worst Overall Class",
       stat: `${(worst.hitRate * 100).toFixed(0)}% (${worst.year})`,
-      body: `${worst.hits}/${worst.n} players.${worst.hitRate === 0 ? " Complete shutout." : ""}`,
+      body: `${worst.hits}/${worst.n} players hit ${outcomeName.toLowerCase()}.${worst.hitRate === 0 ? " Complete shutout." : ""}`,
       tone: "negative",
       accent: "rose",
     });
   }
 
-  const recentYears = data.slice(-3);
-  const olderYears = data.slice(0, Math.max(1, data.length - 3));
-  if (recentYears.length >= 2 && olderYears.length >= 1) {
-    const recentAvg = recentYears.reduce((a, d) => a + d.hitRate, 0) / recentYears.length;
-    const olderAvg = olderYears.reduce((a, d) => a + d.hitRate, 0) / olderYears.length;
-    const diff = recentAvg - olderAvg;
-
-    if (Math.abs(diff) > 0.05) {
-      insights.push({
-        icon: diff > 0 ? TrendingUp : TrendingDown,
-        title: "Recent Trend",
-        stat: `${diff > 0 ? "+" : ""}${(diff * 100).toFixed(1)}pts`,
-        body: `Last 3 classes: ${(recentAvg * 100).toFixed(1)}% vs earlier ${(olderAvg * 100).toFixed(1)}%.`,
-        tone: diff > 0 ? "positive" : "negative",
-        accent: diff > 0 ? "emerald" : "red",
-      });
-    } else {
-      insights.push({
-        icon: Minus,
-        title: "Stable Trend",
-        stat: `±${(Math.abs(diff) * 100).toFixed(1)}pts`,
-        body: `Recent classes (${(recentAvg * 100).toFixed(1)}%) track close to historical (${(olderAvg * 100).toFixed(1)}%).`,
-        tone: "neutral",
-        accent: "slate",
-      });
-    }
-  }
-
-  const variance = rates.reduce((sum, r) => sum + (r - avg) ** 2, 0) / rates.length;
-  const stdDev = Math.sqrt(variance);
-  const stability = getStabilityScore(stdDev);
-  insights.push({
-    icon: stdDev > 0.15 ? Target : stdDev < 0.08 ? Target : Gauge,
-    title: "Stability Score",
-    stat: `${stability.score}/100`,
-    body: `${stability.label} (±${(stdDev * 100).toFixed(1)}% volatility). ${stdDev > 0.15 ? "Outcomes vary heavily by class." : stdDev < 0.08 ? "Consistent, predictable slot." : "Moderate year-to-year variation."}`,
-    tone: stdDev > 0.15 ? "negative" : stdDev < 0.08 ? "positive" : "neutral",
-    accent: "gold",
-  });
-
-  const zeroYears = data.filter((d) => d.hitRate === 0);
-  if (zeroYears.length > 0 && zeroYears.length < data.length) {
+  // Best / worst position (aggregated across every selected class & round).
+  const posWithData = byPosition.filter((p) => p.n > 0);
+  if (posWithData.length > 0) {
+    const bestPos = posWithData.reduce((a, b) => (b.hitRate > a.hitRate ? b : a));
     insights.push({
-      icon: Calendar,
-      title: "Shutout Classes",
-      stat: `${zeroYears.length}/${data.length}`,
-      body: `Zero-hit years: ${zeroYears.map((d) => d.year).join(", ")}.${zeroYears.length >= 3 ? " High bust risk." : ""}`,
-      tone: "negative",
-      accent: "red",
+      icon: Target,
+      title: "Best Overall Position",
+      stat: `${(bestPos.hitRate * 100).toFixed(0)}% (${bestPos.pos})`,
+      body: `${bestPos.hits}/${bestPos.n} hit ${outcomeName.toLowerCase()} across ${data.length} classes.`,
+      tone: "positive",
+      accent: "emerald",
     });
+
+    if (posWithData.length > 1) {
+      const worstPos = posWithData.reduce((a, b) => (b.hitRate < a.hitRate ? b : a));
+      if (worstPos.pos !== bestPos.pos) {
+        insights.push({
+          icon: TrendingDown,
+          title: "Worst Overall Position",
+          stat: `${(worstPos.hitRate * 100).toFixed(0)}% (${worstPos.pos})`,
+          body: `${worstPos.hits}/${worstPos.n} hit ${outcomeName.toLowerCase()} across ${data.length} classes.`,
+          tone: "negative",
+          accent: "rose",
+        });
+      }
+    }
   }
 
   return insights;
 }
 
-// Dash pattern per round so overlapping same-position lines stay distinguishable.
-const roundDash: Record<number, string> = {
-  1: "",
-  2: "6 3",
-  3: "2 3",
-  4: "8 3 2 3",
-  5: "10 4",
-};
-
 const allPositions: Pos[] = ["QB", "RB", "WR", "TE"];
 const allRounds = [1, 2, 3, 4, 5];
 
+// Position-rank cutoff for a "hit" at the selected outcome (matches computeTrends).
+const hitThreshold = (o: Outcome) => (o === "elite" ? 12 : o === "starter" ? 24 : 36);
+
+// One row per draft class (season): number of players who hit at each position
+// (pooled across all rookie rounds), plus the row total.
+interface ClassRow {
+  year: number;
+  QB: number;
+  RB: number;
+  WR: number;
+  TE: number;
+  total: number;
+}
+
+// A single drafted rookie, used to render the expandable per-class draft board.
+interface BoardPlayer {
+  id: string;
+  name: string;
+  pos: Pos;
+  round: number;
+  pick: number;
+  hit: boolean;
+}
+
+const pad2 = (n: number) => n.toString().padStart(2, "0");
+
+// "Ja'Marr Chase" -> "J. Chase" (keeps any multi-word surname / suffix).
+function abbreviateName(name: string): string {
+  const parts = name.trim().split(/\s+/);
+  if (parts.length < 2) return name;
+  return `${parts[0][0]}. ${parts.slice(1).join(" ")}`;
+}
+
+// Text measurement for the board's layout ladder. The maths lives in
+// lib/draftBoardLayout; this half is the DOM-dependent bit.
+
+const measureCanvas =
+  typeof document !== "undefined" ? document.createElement("canvas").getContext("2d") : null;
+
+function textWidth(text: string, font: string): number {
+  if (!measureCanvas) return text.length * 6; // SSR / no canvas: rough fallback
+  measureCanvas.font = font;
+  return measureCanvas.measureText(text).width;
+}
+
+function fontOf(el: HTMLElement | null): string {
+  if (!el) return "normal 500 11px sans-serif";
+  const cs = getComputedStyle(el);
+  return `${cs.fontStyle} ${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}`;
+}
+
+/** Widest name (and widest pick/POS line) in each round, at both name formats. */
+function measureRounds(
+  byRound: Map<number, BoardPlayer[]>,
+  nameFont: string,
+  metaFont: string,
+): Map<number, RoundWidth> {
+  const out = new Map<number, RoundWidth>();
+  byRound.forEach((players, rd) => {
+    let full = 0;
+    let abbrev = 0;
+    for (const p of players) {
+      full = Math.max(full, textWidth(p.name, nameFont));
+      abbrev = Math.max(abbrev, textWidth(abbreviateName(p.name), nameFont));
+      // The "1.05 WR" line sits under the name and can out-width a short one.
+      const meta = textWidth(`${p.round}.${pad2(p.pick)} ${p.pos}`, metaFont) + 4;
+      full = Math.max(full, meta);
+      abbrev = Math.max(abbrev, meta);
+    }
+    out.set(rd, { full, abbrev });
+  });
+  return out;
+}
+
+// The expanded draft board for one class: every rookie drafted that year, laid
+// out with one column per round and ordered by pick. Players who hit are shown
+// at full strength (headshot + pos color + accent); misses are faded/shaded.
+function DraftBoard({ players }: { players: BoardPlayer[] }) {
+  const gridRef = useRef<HTMLDivElement>(null);
+  const nameProbeRef = useRef<HTMLSpanElement>(null);
+  const metaProbeRef = useRef<HTMLSpanElement>(null);
+
+  const { byRound, roundsSorted } = useMemo(() => {
+    const m = new Map<number, BoardPlayer[]>();
+    for (const p of players) {
+      if (!m.has(p.round)) m.set(p.round, []);
+      m.get(p.round)!.push(p);
+    }
+    return { byRound: m, roundsSorted: Array.from(m.keys()).sort((a, b) => a - b) };
+  }, [players]);
+
+  const ladder = useMemo(() => buildLadder(roundsSorted.length), [roundsSorted.length]);
+  const [layout, setLayout] = useState<BoardLayout>(() => ladder[0]);
+
+  useLayoutEffect(() => {
+    const grid = gridRef.current;
+    if (!grid) return;
+
+    const choose = () => {
+      const cs = getComputedStyle(grid);
+      const gap = parseFloat(cs.columnGap) || 8;
+      // clientWidth includes padding, so take the board's px-3 back off.
+      const avail =
+        grid.clientWidth - (parseFloat(cs.paddingLeft) || 0) - (parseFloat(cs.paddingRight) || 0);
+      if (avail <= 0) return;
+      const widths = measureRounds(byRound, fontOf(nameProbeRef.current), fontOf(metaProbeRef.current));
+      const pick = chooseLayout(ladder, roundsSorted, widths, avail, gap);
+      // Compare by value: rebuilding the ladder must not force a re-render.
+      setLayout((prev) => (sameLayout(prev, pick) ? prev : pick));
+    };
+
+    choose();
+    const ro = new ResizeObserver(choose);
+    ro.observe(grid);
+    // Text measurement is only trustworthy once the real font is in.
+    let cancelled = false;
+    document.fonts?.ready.then(() => {
+      if (!cancelled) choose();
+    });
+    return () => {
+      cancelled = true;
+      ro.disconnect();
+    };
+  }, [byRound, roundsSorted, ladder]);
+
+  const bare = layout.chrome === "none";
+  const padLeft = bare ? 0 : PAD_LEFT;
+  const padRight = bare ? 0 : layout.chrome === "tight" ? PAD_RIGHT_TIGHT : PAD_RIGHT_NORMAL;
+
+  return (
+    <div
+      ref={gridRef}
+      className="grid gap-2 sm:gap-3 px-3 py-3 bg-[var(--sc-card-soft)]/40"
+      style={{
+        gridTemplateColumns: layout.fill
+          ? `repeat(${layout.cols}, minmax(0, 1fr))`
+          : `repeat(${layout.cols}, max-content)`,
+      }}
+    >
+      {/* Off-screen probes: canvas text measurement needs the resolved font. */}
+      <span ref={nameProbeRef} aria-hidden="true" className="invisible absolute text-[11px] font-medium" />
+      <span ref={metaProbeRef} aria-hidden="true" className="invisible absolute text-[10px] font-bold" />
+
+      {roundsSorted.map((rd) => (
+        <div key={rd} className="min-w-0">
+          <div className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1.5 px-0.5">
+            Round {rd}
+          </div>
+          <div className="space-y-1.5">
+            {byRound.get(rd)!.map((p) => (
+              <div
+                key={p.id}
+                data-testid={`board-player-${p.id}`}
+                className={cn(
+                  "flex items-center py-1 transition-colors",
+                  !bare && "rounded-md border",
+                  !bare && (p.hit ? "bg-card border-border shadow-sm" : "border-transparent bg-transparent"),
+                  !p.hit && "opacity-45 saturate-[.6]",
+                )}
+                style={{
+                  paddingLeft: padLeft,
+                  paddingRight: padRight,
+                  columnGap: AVATAR_GAP,
+                  ...(p.hit && !bare
+                    ? { borderLeftColor: posLineColors[p.pos], borderLeftWidth: 3 }
+                    : null),
+                }}
+              >
+                <PlayerAvatar
+                  playerId={p.id}
+                  playerName={p.name}
+                  className={cn("flex-shrink-0", !p.hit && "grayscale")}
+                />
+                <div className="min-w-0 flex-1 leading-tight">
+                  <div
+                    className={cn(
+                      "truncate text-[11px] font-medium",
+                      p.hit ? "text-foreground" : "text-muted-foreground",
+                    )}
+                  >
+                    {layout.abbrev ? abbreviateName(p.name) : p.name}
+                  </div>
+                  <div className="flex items-center gap-1 text-[10px]">
+                    <span className="tabular-nums font-semibold text-muted-foreground">
+                      {p.round}.{pad2(p.pick)}
+                    </span>
+                    <span className="font-bold" style={{ color: p.hit ? posLineColors[p.pos] : undefined }}>
+                      {p.pos}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+type SortKey = "year" | Pos | "total";
+type SortDir = "asc" | "desc";
+
+// Header columns for the class-hit table, in render order.
+const classColumns: { key: SortKey; label: string; align: "left" | "right"; className?: string; color?: string }[] = [
+  { key: "year", label: "Draft Class", align: "left", className: "text-white/70" },
+  ...allPositions.map((pos) => ({ key: pos as SortKey, label: pos, align: "right" as const, color: posLineColors[pos] })),
+  { key: "total", label: "Total", align: "right", className: "text-white" },
+];
+
+// A single table of players who hit by position across the selected seasons.
+// Column headers are sortable; each row expands to reveal that class's draft board.
+function ClassTable({
+  rows,
+  boardsByYear,
+  expanded,
+  onToggle,
+}: {
+  rows: ClassRow[];
+  boardsByYear: Map<number, BoardPlayer[]>;
+  expanded: Set<number>;
+  onToggle: (year: number) => void;
+}) {
+  const [sort, setSort] = useState<{ key: SortKey; dir: SortDir }>({ key: "year", dir: "asc" });
+
+  const onSort = (key: SortKey) =>
+    setSort((prev) =>
+      prev.key === key
+        ? { key, dir: prev.dir === "asc" ? "desc" : "asc" }
+        : { key, dir: key === "year" ? "asc" : "desc" },
+    );
+
+  const sortedRows = useMemo(() => {
+    const dir = sort.dir === "asc" ? 1 : -1;
+    return [...rows].sort((a, b) => {
+      const diff = a[sort.key] - b[sort.key];
+      // Stable tiebreak by year (ascending) so equal counts keep a sensible order.
+      return (diff !== 0 ? diff * dir : a.year - b.year);
+    });
+  }, [rows, sort]);
+
+  return (
+    <div className="mt-1.5 overflow-x-auto">
+      <table className="w-full text-sm border border-border" data-testid="class-hits-table">
+        <thead>
+          <tr className="bg-[#0b1634] border-b border-border">
+            {classColumns.map((col) => {
+              const active = sort.key === col.key;
+              return (
+                <th
+                  key={col.key}
+                  aria-sort={active ? (sort.dir === "asc" ? "ascending" : "descending") : "none"}
+                  className={cn(
+                    "uppercase tracking-wider font-bold text-[11px] py-2 px-3",
+                    col.align === "left" ? "text-left" : "text-right",
+                    col.className,
+                  )}
+                  // Active sort column is highlighted gold (overrides the column's default color).
+                  style={{ color: active ? "#d4af37" : col.color }}
+                >
+                  <button
+                    type="button"
+                    onClick={() => onSort(col.key)}
+                    data-testid={`sort-${col.key}`}
+                    className={cn(
+                      "inline-flex items-center gap-1 select-none hover:opacity-80 focus:outline-none uppercase tracking-wider font-bold",
+                      col.align === "right" && "flex-row-reverse",
+                    )}
+                  >
+                    <span>{col.label}</span>
+                    {active ? (
+                      sort.dir === "asc" ? (
+                        <ChevronUp className="w-3 h-3" aria-hidden="true" />
+                      ) : (
+                        <ChevronDown className="w-3 h-3" aria-hidden="true" />
+                      )
+                    ) : (
+                      <ChevronsUpDown className="w-3 h-3 opacity-40" aria-hidden="true" />
+                    )}
+                  </button>
+                </th>
+              );
+            })}
+          </tr>
+        </thead>
+        <tbody>
+          {sortedRows.map((r) => {
+            const isOpen = expanded.has(r.year);
+            const board = boardsByYear.get(r.year) ?? [];
+            return (
+              <Fragment key={r.year}>
+                <tr
+                  className="border-b border-border/40 last:border-0 cursor-pointer hover:bg-[var(--sc-card-soft)]/60"
+                  onClick={() => onToggle(r.year)}
+                  data-testid={`class-row-${r.year}`}
+                  aria-expanded={isOpen}
+                >
+                  <td className="py-1.5 px-3 font-semibold text-[#0b1634] dark:text-white tabular-nums">
+                    <span className="inline-flex items-center gap-1.5">
+                      <ChevronRight
+                        className={cn("w-3.5 h-3.5 text-muted-foreground transition-transform", isOpen && "rotate-90")}
+                        aria-hidden="true"
+                      />
+                      {r.year}
+                    </span>
+                  </td>
+                  {allPositions.map((pos) => (
+                    <td key={pos} className="py-1.5 px-3 text-right tabular-nums">{r[pos]}</td>
+                  ))}
+                  <td className="py-1.5 px-3 text-right tabular-nums font-bold text-[#0b3a7a] dark:text-[#d4af37]">{r.total}</td>
+                </tr>
+                {isOpen && (
+                  <tr className="border-b border-border/40 last:border-0">
+                    <td colSpan={allPositions.length + 2} className="p-0">
+                      {board.length > 0 ? (
+                        <DraftBoard players={board} />
+                      ) : (
+                        <p className="text-xs text-muted-foreground px-3 py-3">No draft board available for this class.</p>
+                      )}
+                    </td>
+                  </tr>
+                )}
+              </Fragment>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 export function TrendsChart() {
   const { filteredDrafts, rankMap, filters } = useData();
-  const [showMovingAvg, setShowMovingAvg] = useState(false);
-  const [viewMode, setViewMode] = useState<ViewMode>("yearly");
 
   // Position + round come from the header filter bar (multi-select).
   const positions = filters.positions.length > 0 ? allPositions.filter((p) => filters.positions.includes(p)) : allPositions;
@@ -187,49 +468,7 @@ export function TrendsChart() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filteredDrafts, rankMap, filters.positions, filters.rounds, filters.outcome, filters.minGames]);
 
-  const transform = (raw: TrendPoint[]): TrendPoint[] => {
-    let out = raw;
-    if (viewMode === "cumulative") {
-      let totalN = 0, totalHits = 0;
-      out = raw.map((t) => {
-        totalN += t.n;
-        totalHits += t.hits;
-        return { ...t, hitRate: totalN > 0 ? totalHits / totalN : 0 };
-      });
-    } else if (viewMode === "rolling3") {
-      out = raw.map((t, i) => {
-        const slice = raw.slice(Math.max(0, i - 2), i + 1);
-        const totalN = slice.reduce((s, d) => s + d.n, 0);
-        const totalHits = slice.reduce((s, d) => s + d.hits, 0);
-        return { ...t, hitRate: totalN > 0 ? totalHits / totalN : 0 };
-      });
-    }
-    if (showMovingAvg) {
-      out = out.map((t, i) => {
-        const slice = out.slice(Math.max(0, i - 2), i + 1);
-        return { ...t, hitRate: slice.reduce((s, d) => s + d.hitRate, 0) / slice.length };
-      });
-    }
-    return out;
-  };
-
-  // Merge every transformed series into one row per year keyed by series id.
-  const chartData = useMemo(() => {
-    const byYear = new Map<number, any>();
-    for (const s of series) {
-      for (const t of transform(s.raw)) {
-        if (!byYear.has(t.year)) byYear.set(t.year, { year: t.year });
-        const row = byYear.get(t.year);
-        row[s.key] = t.hitRate;
-        row[`${s.key}_n`] = t.n;
-        row[`${s.key}_hits`] = t.hits;
-      }
-    }
-    return Array.from(byYear.values()).sort((a, b) => a.year - b.year);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [series, viewMode, showMovingAvg]);
-
-  // Pool all selected cohorts by year for the summary insights / stability / avg line.
+  // Pool all selected cohorts by year for the summary insights.
   const pooled = useMemo(() => {
     const byYear = new Map<number, TrendPoint>();
     for (const s of series) {
@@ -250,24 +489,104 @@ export function TrendsChart() {
   }, [series]);
 
   const outcomeName = filters.outcome === "elite" ? "Top-12" : filters.outcome === "starter" ? "Top-24" : "Top-36";
-  const selectionLabel = `${positions.join("/")} Rd ${rounds.join("/")}`;
+
+  // Aggregate every selected series down to one row per position (pooled across
+  // rounds and classes) for the "Best/Worst Overall Position" cards.
+  const byPosition = useMemo(() => {
+    const map = new Map<Pos, PosAgg>();
+    for (const s of series) {
+      const cur = map.get(s.pos) ?? { pos: s.pos, hits: 0, n: 0, hitRate: 0 };
+      for (const t of s.raw) {
+        cur.hits += t.hits;
+        cur.n += t.n;
+      }
+      map.set(s.pos, cur);
+    }
+    const rows = Array.from(map.values());
+    for (const r of rows) r.hitRate = r.n > 0 ? r.hits / r.n : 0;
+    return rows;
+  }, [series]);
 
   const insights = useMemo(
-    () => generateInsights(pooled, selectionLabel, outcomeName),
-    [pooled, selectionLabel, outcomeName]
+    () => generateInsights(pooled, byPosition, outcomeName),
+    [pooled, byPosition, outcomeName]
   );
 
-  const rates = pooled.map((d) => d.hitRate);
-  const avg = rates.length > 0 ? rates.reduce((a, b) => a + b, 0) / rates.length : 0;
-  const variance = rates.length > 0 ? rates.reduce((sum, r) => sum + (r - avg) ** 2, 0) / rates.length : 0;
-  const stdDev = Math.sqrt(variance);
-  const stability = getStabilityScore(stdDev);
+  // Single draft-class table: for each selected season, the number of players
+  // who hit at each position, pooled across every rookie round. Always spans
+  // every round & position regardless of the position/round filter; respects
+  // the year range, outcome, and min-games filters.
+  const classRows = useMemo(() => {
+    const yStart = filters.yearStart;
+    const yEnd = Math.min(filters.yearEnd, LATEST_SEASON_WITH_DATA);
 
-  const viewModes: { id: ViewMode; label: string }[] = [
-    { id: "yearly", label: "By Year" },
-    { id: "rolling3", label: "Rolling 3-Yr" },
-    { id: "cumulative", label: "Cumulative" },
-  ];
+    // hits[pos] = Map<year, hits summed across all rounds>. `drafted` tracks the
+    // total players drafted per year so we can keep real classes that hit zero
+    // while dropping years with no draft class at all.
+    const hitsByPos: Record<string, Map<number, number>> = {};
+    const drafted = new Map<number, number>();
+    for (const pos of allPositions) {
+      const m = new Map<number, number>();
+      for (const round of allRounds) {
+        const raw = computeTrends(filteredDrafts, rankMap, pos, round, filters.outcome, filters.minGames);
+        for (const t of raw) {
+          m.set(t.year, (m.get(t.year) ?? 0) + t.hits);
+          drafted.set(t.year, (drafted.get(t.year) ?? 0) + t.n);
+        }
+      }
+      hitsByPos[pos] = m;
+    }
+
+    const rows: ClassRow[] = [];
+    for (let y = yStart; y <= yEnd; y++) {
+      if ((drafted.get(y) ?? 0) === 0) continue;
+      const counts = allPositions.map((p) => hitsByPos[p].get(y) ?? 0);
+      const total = counts.reduce((a, b) => a + b, 0);
+      rows.push({
+        year: y,
+        QB: counts[0],
+        RB: counts[1],
+        WR: counts[2],
+        TE: counts[3],
+        total,
+      });
+    }
+    return rows;
+  }, [filteredDrafts, rankMap, filters.yearStart, filters.yearEnd, filters.outcome, filters.minGames]);
+
+  // Full draft board per class (year → every rookie drafted, rounds 1–5), with a
+  // per-player hit flag using the same rule as the class-hit counts above.
+  const boardsByYear = useMemo(() => {
+    const threshold = hitThreshold(filters.outcome);
+    const map = new Map<number, BoardPlayer[]>();
+    for (const d of filteredDrafts) {
+      if (d.rookie_year > LATEST_SEASON_WITH_DATA) continue;
+      if (!allRounds.includes(d.rookie_round)) continue;
+      const seasons = rankMap.get(d.player_id) || [];
+      const hit = seasons.some(
+        (s) => s.games >= filters.minGames && s.season >= d.rookie_year && s.pos_rank <= threshold,
+      );
+      if (!map.has(d.rookie_year)) map.set(d.rookie_year, []);
+      map.get(d.rookie_year)!.push({
+        id: d.player_id,
+        name: d.player_name,
+        pos: d.pos,
+        round: d.rookie_round,
+        pick: d.rookie_pick,
+        hit,
+      });
+    }
+    Array.from(map.values()).forEach((arr) => arr.sort((a, b) => a.round - b.round || a.pick - b.pick));
+    return map;
+  }, [filteredDrafts, rankMap, filters.outcome, filters.minGames]);
+
+  const [expandedYears, setExpandedYears] = useState<Set<number>>(new Set());
+  const toggleYear = (year: number) =>
+    setExpandedYears((prev) => {
+      const next = new Set(prev);
+      next.has(year) ? next.delete(year) : next.add(year);
+      return next;
+    });
 
   return (
     <div className="space-y-4" data-testid="trends-chart">
@@ -290,111 +609,25 @@ export function TrendsChart() {
         </div>
       )}
 
-      <div>
-        <h2 className="scff-title text-[clamp(1.25rem,2.4vw,1.6rem)] text-[#0b1634] dark:text-white">Hit Rate Trends</h2>
-        <div className="scff-accent-bar mt-1.5" />
-        <p className="text-sm text-muted-foreground mt-1">
-          {outcomeName} hit rate by draft class year — one line per selected position &amp; round
-        </p>
-      </div>
-
-      <div className="flex flex-wrap items-end gap-4">
-        <div className="flex flex-col gap-1">
-          <label className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">View Mode</label>
-          <div className="flex gap-1">
-            {viewModes.map((vm) => (
-              <button
-                key={vm.id}
-                onClick={() => setViewMode(vm.id)}
-                data-testid={`trend-view-${vm.id}`}
-                className={`px-2 py-1 text-[10px] font-medium rounded-md border transition-colors ${
-                  viewMode === vm.id
-                    ? "bg-[#0b3a7a] text-white border-[#0b3a7a] dark:bg-[#d4af37] dark:text-[#0a1628] dark:border-[#d4af37]"
-                    : "border-[#0b3a7a]/20 text-[#0b3a7a]/60 dark:border-[#d4af37]/20 dark:text-[#d4af37]/60"
-                }`}
-              >
-                {vm.label}
-              </button>
-            ))}
-          </div>
+      <div className="space-y-3" data-testid="class-hits-section">
+        <div>
+          <h2 className="scff-title text-[clamp(1.25rem,2.4vw,1.6rem)] text-[#0b1634] dark:text-white">Players Who Hit by Class</h2>
+          <div className="scff-accent-bar mt-1.5" />
+          <p className="text-sm text-muted-foreground mt-1">
+            Number of players who hit {outcomeName.toLowerCase()} at each position per draft class, pooled across every rookie round. Click a class to see its full draft board.
+          </p>
         </div>
-        <div className="flex items-center gap-2">
-          <label className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">3-Yr Avg</label>
-          <Switch checked={showMovingAvg} onCheckedChange={setShowMovingAvg} data-testid="switch-moving-avg" />
-        </div>
-      </div>
 
-      <div className="flex items-center gap-4 flex-wrap">
-        <div className="flex items-center gap-2 px-3 py-1.5 rounded-md bg-muted/30 dark:bg-muted/20">
-          <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Stability</span>
-          <div className="w-16 h-2 bg-muted rounded-full overflow-hidden">
-            <div className={`h-full rounded-full transition-all ${getStabilityBarColor(stability.score)}`} style={{ width: `${stability.score}%` }} />
-          </div>
-          <span className={`text-xs font-bold ${stability.color}`}>{stability.score}/100</span>
-          <span className="text-[10px] text-muted-foreground">({stability.label})</span>
-        </div>
-      </div>
-
-      <div className="h-[320px] bg-card rounded-lg p-4 border border-[#0b3a7a]/5 dark:border-[#d4af37]/10">
-        <ResponsiveContainer width="100%" height="100%">
-          <LineChart data={chartData}>
-            <CartesianGrid strokeDasharray="3 3" stroke="currentColor" opacity={0.06} />
-            <XAxis dataKey="year" tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
-            <YAxis
-              tick={{ fontSize: 11 }}
-              axisLine={false}
-              tickLine={false}
-              tickFormatter={(v: number) => `${(v * 100).toFixed(0)}%`}
-              domain={[0, 1]}
-            />
-            <ReferenceLine y={avg} stroke="#94a3b8" strokeDasharray="4 4" strokeOpacity={0.4} />
-            <Tooltip
-              content={({ active, payload, label }: any) => {
-                if (!active || !payload?.length) return null;
-                return (
-                  <div className="bg-[#0b3a7a] text-white p-3 rounded-lg text-xs shadow-xl min-w-[160px]">
-                    <div className="font-bold text-[#d4af37] text-sm mb-1.5">{label}</div>
-                    <div className="space-y-1">
-                      {payload
-                        .filter((p: any) => p.value != null)
-                        .map((p: any) => {
-                          const n = p.payload?.[`${p.dataKey}_n`];
-                          const hits = p.payload?.[`${p.dataKey}_hits`];
-                          return (
-                            <div key={p.dataKey} className="flex justify-between gap-3">
-                              <span className="flex items-center gap-1.5">
-                                <span className="w-2.5 h-2.5 rounded-full inline-block" style={{ background: p.stroke }} />
-                                {p.name}
-                              </span>
-                              <span className="font-bold tabular-nums">
-                                {(p.value * 100).toFixed(1)}%
-                                {n != null && <span className="ml-1 font-normal opacity-60">({hits}/{n})</span>}
-                              </span>
-                            </div>
-                          );
-                        })}
-                    </div>
-                  </div>
-                );
-              }}
-            />
-            <Legend wrapperStyle={{ fontSize: 11 }} />
-            {series.map((s) => (
-              <Line
-                key={s.key}
-                type="monotone"
-                dataKey={s.key}
-                name={s.name}
-                stroke={posLineColors[s.pos]}
-                strokeWidth={2}
-                strokeDasharray={roundDash[s.round]}
-                dot={{ r: 2.5, fill: posLineColors[s.pos] }}
-                activeDot={{ r: 5 }}
-                connectNulls
-              />
-            ))}
-          </LineChart>
-        </ResponsiveContainer>
+        {classRows.length === 0 ? (
+          <p className="text-xs text-muted-foreground mt-2">No draft classes in the selected range.</p>
+        ) : (
+          <ClassTable
+            rows={classRows}
+            boardsByYear={boardsByYear}
+            expanded={expandedYears}
+            onToggle={toggleYear}
+          />
+        )}
       </div>
     </div>
   );

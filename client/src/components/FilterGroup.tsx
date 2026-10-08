@@ -19,7 +19,7 @@ export function FilterGroup({
       <span className="hidden sm:inline text-xs font-bold tracking-[0.02em] text-slate-400/90 flex-shrink-0">
         {label}
       </span>
-      <div className="flex items-center gap-0 sm:gap-1 p-1 h-10 rounded-xl bg-[var(--sc-card-soft)] border border-[var(--sc-border)] w-full sm:w-auto">
+      <div className="flex items-center gap-0 sm:gap-1 p-0.5 h-[28px] rounded-xl bg-[var(--sc-card-soft)] border border-[var(--sc-border)] w-full sm:w-auto">
         {children}
       </div>
     </div>

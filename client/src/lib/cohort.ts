@@ -394,7 +394,13 @@ export function computePlayerSummaries(
   minGames: number
 ): import("./types").PlayerSummary[] {
   return drafts.map((d) => {
-    const seasons = (rankMap.get(d.player_id) || []).sort((a, b) => a.season - b.season);
+    // Restrict to the player's own career (rookie year onward). Some source rows
+    // carry seasons that predate the rookie year — e.g. a junior's id colliding
+    // with the senior's history — which would otherwise yield a "hit" (and a
+    // negative breakout year like "Year -6") from before they entered the league.
+    const seasons = (rankMap.get(d.player_id) || [])
+      .filter((s) => s.season >= d.rookie_year)
+      .sort((a, b) => a.season - b.season);
     const threshold = getThreshold(outcome, d.pos);
 
     let bestRank = Infinity;

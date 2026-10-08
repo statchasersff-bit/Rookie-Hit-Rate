@@ -1,26 +1,44 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef, useLayoutEffect, useCallback } from "react";
 import { useData } from "@/lib/data-context";
-import { ChevronUp, ChevronDown, ChevronLeft, ChevronRight } from "lucide-react";
-import { PlayerDrawer } from "./player-drawer";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { TeamLogo } from "./team-logo";
 import { PlayerAvatar } from "./player-avatar";
-import type { PlayerSummary } from "@/lib/types";
+import { playerProfileUrl } from "@/lib/playerProfile";
 
-// Position colors — same hue language as the heatmap (QB red · RB emerald ·
-// WR blue · TE gold). Text-only, no background highlight.
-const posColors: Record<string, string> = {
-  QB: "text-red-600 dark:text-red-400",
-  RB: "text-emerald-600 dark:text-emerald-400",
-  WR: "text-blue-600 dark:text-blue-400",
-  TE: "text-[#8a6d12] dark:text-[#d4af37]",
+// Position colors — same strong hues used across the heatmaps and cohort tables
+// (QB red · RB emerald · WR blue · TE gold). Text-only, no background highlight.
+const posTextColor: Record<string, string> = {
+  QB: "#dc2626",
+  RB: "#059669",
+  WR: "#2563eb",
+  TE: "#d4af37",
 };
 
-type SortField = "player_name" | "pos" | "current_nfl_team" | "rookie_year" | "rookie_round" | "best_finish" | "best_finish_year" | "hit_type" | "breakout_time";
+type SortField = "player_name" | "pos" | "current_nfl_team" | "rookie_year" | "rookie_round" | "best_finish" | "hit_type" | "breakout_time";
 
 // Numeric position-rank pulled from a "RB3 (2019)" best-finish string (Infinity when N/A).
 function parseFinishRank(bestFinish: string): number {
   const m = bestFinish.match(/(\d+)/);
   return m ? parseInt(m[1], 10) : Infinity;
+}
+
+// Comparator helper: rows whose value is missing ("—") always sort to the bottom,
+// regardless of ascending/descending (the caller returns this BEFORE the sortDir
+// flip). Returns null when neither is missing, so the caller falls through to its
+// normal comparison.
+function missingLast(aMissing: boolean, bMissing: boolean): number | null {
+  if (aMissing && bMissing) return 0;
+  if (aMissing) return 1;
+  if (bMissing) return -1;
+  return null;
+}
+
+// "Christian McCaffrey" → "C. McCaffrey" — used when the table is too narrow to
+// show full names without horizontal scrolling.
+function abbreviateName(name: string): string {
+  const parts = name.trim().split(/\s+/);
+  if (parts.length < 2 || !parts[0]) return name;
+  return `${parts[0][0]}. ${parts.slice(1).join(" ")}`;
 }
 type SortDir = "asc" | "desc";
 
@@ -28,8 +46,16 @@ export function PlayerTable() {
   const { playerSummaries, filters, playerSearch: search } = useData();
   const [sortField, setSortField] = useState<SortField>("rookie_year");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
-  const [selectedPlayer, setSelectedPlayer] = useState<PlayerSummary | null>(null);
   const [page, setPage] = useState(0);
+
+  // When the table can't fit without horizontal scrolling, player names collapse
+  // from "First Last" to "F. Last". `fullWidthNeeded` records the width the table
+  // needs with full names (captured the moment it first overflows) so we only
+  // restore full names once there's room again — this avoids the abbreviate→shrink
+  // →fits→un-abbreviate→overflow oscillation right at the breakpoint.
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const [abbreviateNames, setAbbreviateNames] = useState(false);
+  const fullWidthNeeded = useRef(0);
 
   const PAGE_SIZE = 50;
 
@@ -68,13 +94,20 @@ export function PlayerTable() {
         case "current_nfl_team": cmp = a.current_nfl_team.localeCompare(b.current_nfl_team); break;
         case "rookie_year": cmp = a.rookie_year - b.rookie_year; break;
         case "rookie_round": cmp = a.rookie_round - b.rookie_round || a.rookie_pick - b.rookie_pick; break;
-        case "best_finish": cmp = parseFinishRank(a.best_finish) - parseFinishRank(b.best_finish); break;
-        case "best_finish_year": cmp = a.best_finish_year - b.best_finish_year; break;
+        case "best_finish": {
+          const m = missingLast(a.best_finish === "N/A", b.best_finish === "N/A");
+          if (m !== null) return m;
+          cmp = parseFinishRank(a.best_finish) - parseFinishRank(b.best_finish); break;
+        }
         case "hit_type": {
           const order: Record<string, number> = { elite: 0, starter: 1, flex: 2, bust: 3, too_early: 4 };
           cmp = (order[a.hit_type] ?? 5) - (order[b.hit_type] ?? 5); break;
         }
-        case "breakout_time": cmp = (a.breakout_time ?? 99) - (b.breakout_time ?? 99); break;
+        case "breakout_time": {
+          const m = missingLast(a.breakout_time == null, b.breakout_time == null);
+          if (m !== null) return m;
+          cmp = (a.breakout_time as number) - (b.breakout_time as number); break;
+        }
       }
       return sortDir === "asc" ? cmp : -cmp;
     });
@@ -90,10 +123,33 @@ export function PlayerTable() {
   const pageStart = clampedPage * PAGE_SIZE;
   const pageRows = filtered.slice(pageStart, pageStart + PAGE_SIZE);
 
-  const SortIcon = ({ field }: { field: SortField }) => {
-    if (sortField !== field) return null;
-    return sortDir === "asc" ? <ChevronUp className="w-3 h-3 inline ml-0.5" /> : <ChevronDown className="w-3 h-3 inline ml-0.5" />;
-  };
+  const measureOverflow = useCallback(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    setAbbreviateNames((prev) => {
+      if (!prev) {
+        // Full names are showing, so scrollWidth is the real width they require.
+        fullWidthNeeded.current = el.scrollWidth;
+        return el.scrollWidth > el.clientWidth + 1;
+      }
+      // Already abbreviated: only restore full names once they'd fit again.
+      return el.clientWidth < fullWidthNeeded.current;
+    });
+  }, []);
+
+  useLayoutEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    measureOverflow();
+    const ro = new ResizeObserver(measureOverflow);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [measureOverflow]);
+
+  // Column widths can shift when the rendered rows change, so re-check overflow.
+  useLayoutEffect(() => {
+    measureOverflow();
+  }, [pageRows, measureOverflow]);
 
   return (
     <div className="space-y-4" data-testid="player-table">
@@ -111,8 +167,8 @@ export function PlayerTable() {
         </span>
       </div>
 
-      <div className="overflow-x-auto border border-border rounded-md">
-        <table className="w-full text-sm">
+      <div ref={scrollRef} className="overflow-x-auto border border-border rounded-md [container-type:inline-size]">
+        <table className="w-full [--rhr-fs:clamp(11.2px,2cqw,14px)] text-[var(--rhr-fs)]">
           <thead className="sticky top-0 z-10">
             <tr className="bg-[#0b1634] backdrop-blur-sm border-b border-border">
               {[
@@ -121,18 +177,16 @@ export function PlayerTable() {
                 { field: "rookie_year" as SortField, label: "Drafted" },
                 { field: "rookie_round" as SortField, label: "Pick" },
                 { field: "best_finish" as SortField, label: "Best Finish" },
-                { field: "best_finish_year" as SortField, label: "Finish Yr" },
                 { field: "breakout_time" as SortField, label: "Breakout" },
               ].map((col, i) => (
                 <th
                   key={col.field + i}
-                  className={`px-3 py-px text-left text-[10px] uppercase tracking-wider font-bold cursor-pointer select-none transition-colors ${sortField === col.field ? "text-[#d4af37]" : "text-white/70 hover:text-white"} ${i >= 2 ? "text-center" : ""}`}
+                  className={`px-[clamp(5px,0.9cqw,12px)] py-px text-left text-[calc(var(--rhr-fs)*0.714)] uppercase tracking-wider font-bold cursor-pointer select-none transition-colors ${sortField === col.field ? "text-[#d4af37]" : "text-white/70 hover:text-white"} ${i >= 2 ? "text-center" : ""}`}
                   onClick={() => handleSort(col.field)}
                   aria-sort={sortField === col.field ? (sortDir === "asc" ? "ascending" : "descending") : "none"}
                 >
                   <span className={i >= 2 ? "inline-flex items-center justify-center" : "inline-flex items-center"}>
                     {col.label}
-                    <SortIcon field={col.field} />
                   </span>
                 </th>
               ))}
@@ -141,7 +195,7 @@ export function PlayerTable() {
           <tbody>
             {filtered.length === 0 && (
               <tr>
-                <td colSpan={7} className="px-4 py-16 text-center">
+                <td colSpan={6} className="px-4 py-16 text-center">
                   <p className="text-sm font-semibold text-foreground">No players match your filters</p>
                   <p className="text-xs text-muted-foreground mt-1">
                     Try widening the season range or clearing position/round filters{search ? " and the search box" : ""}.
@@ -152,35 +206,39 @@ export function PlayerTable() {
             {pageRows.map((player) => (
               <tr
                 key={player.player_id}
-                className="border-t border-border/70 cursor-pointer transition-colors hover:bg-accent/50"
-                onClick={() => setSelectedPlayer(player)}
+                className="border-t border-border/70 transition-colors hover:bg-accent/50"
                 data-testid={`row-player-${player.player_id}`}
               >
-                <td className="px-3 py-px font-semibold text-[#0b1634] dark:text-white whitespace-nowrap">
+                <td className="px-[clamp(5px,0.9cqw,12px)] py-px text-[calc(var(--rhr-fs)*0.857)] font-semibold text-[#0b1634] dark:text-white whitespace-nowrap">
                   <span className="inline-flex items-center gap-2">
                     <PlayerAvatar playerId={player.player_id} playerName={player.player_name} />
-                    {player.player_name}
+                    <a
+                      href={playerProfileUrl(player.player_name)}
+                      target="_top"
+                      rel="noopener"
+                      className="hover:text-[#0b3a7a] dark:hover:text-[#d4af37] hover:underline underline-offset-2 focus-visible:outline-none focus-visible:underline focus-visible:text-[#0b3a7a] dark:focus-visible:text-[#d4af37] transition-colors"
+                      data-testid={`link-player-${player.player_id}`}
+                    >
+                      {abbreviateNames ? abbreviateName(player.player_name) : player.player_name}
+                    </a>
                   </span>
                 </td>
-                <td className="px-3 py-px text-xs text-muted-foreground">
+                <td className="px-[clamp(5px,0.9cqw,12px)] py-px text-[calc(var(--rhr-fs)*0.857)] text-muted-foreground">
                   <TeamLogo team={player.current_nfl_team} />
                 </td>
-                <td className="px-3 py-px tabular-nums text-xs text-center text-muted-foreground">{player.rookie_year}</td>
-                <td className="px-3 py-px tabular-nums text-xs text-center text-muted-foreground">{player.rookie_round}.{String(player.rookie_pick).padStart(2, "0")}</td>
-                <td className="px-3 py-px text-xs text-center">
+                <td className="px-[clamp(5px,0.9cqw,12px)] py-px tabular-nums text-[calc(var(--rhr-fs)*0.857)] text-center text-muted-foreground">{player.rookie_year}</td>
+                <td className="px-[clamp(5px,0.9cqw,12px)] py-px tabular-nums text-[calc(var(--rhr-fs)*0.857)] text-center text-muted-foreground">{player.rookie_round}.{String(player.rookie_pick).padStart(2, "0")}</td>
+                <td className="px-[clamp(5px,0.9cqw,12px)] py-px text-[calc(var(--rhr-fs)*0.857)] text-center">
                   {player.best_finish === "N/A" ? (
                     <span className="text-muted-foreground">—</span>
                   ) : (
-                    <span className={`font-semibold ${posColors[player.pos] || "text-foreground"}`}>
+                    <span className="font-extrabold" style={{ color: posTextColor[player.pos] }}>
                       {player.best_finish.split(" (")[0]}
                     </span>
                   )}
                 </td>
-                <td className="px-3 py-px tabular-nums text-xs text-center text-muted-foreground">
-                  {player.best_finish === "N/A" ? "—" : player.best_finish_year}
-                </td>
-                <td className="px-3 py-px tabular-nums text-xs text-center">
-                  {player.breakout_time ? `Year ${player.breakout_time}` : "—"}
+                <td className="px-[clamp(5px,0.9cqw,12px)] py-px tabular-nums text-[calc(var(--rhr-fs)*0.857)] text-center">
+                  {player.breakout_time ? (player.breakout_time === 1 ? "Rookie" : `Year ${player.breakout_time}`) : "—"}
                 </td>
               </tr>
             ))}
@@ -221,10 +279,6 @@ export function PlayerTable() {
             </div>
           </div>
         )}
-
-      {selectedPlayer && (
-        <PlayerDrawer player={selectedPlayer} onClose={() => setSelectedPlayer(null)} />
-      )}
     </div>
   );
 }

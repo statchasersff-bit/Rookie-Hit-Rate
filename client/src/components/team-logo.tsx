@@ -13,6 +13,12 @@ const teamLogos: Record<string, string> = Object.fromEntries(
   })
 );
 
+// Normalize alternate team abbreviations to the canonical code used for logos
+// and labels (e.g. some source data uses "JAC" for Jacksonville, we show "JAX").
+const teamAliases: Record<string, string> = {
+  JAC: "JAX",
+};
+
 interface TeamLogoProps {
   team: string;
   /** Show the team abbreviation next to the logo. */
@@ -24,7 +30,8 @@ interface TeamLogoProps {
  * Renders a bundled NFL team logo with the abbreviation as an accessible label,
  * falling back to a text badge for free agents or any team without a logo asset.
  */
-export function TeamLogo({ team, showLabel = true, className = "" }: TeamLogoProps) {
+export function TeamLogo({ team: rawTeam, showLabel = true, className = "" }: TeamLogoProps) {
+  const team = teamAliases[rawTeam] ?? rawTeam;
   const url = team && team !== "FA" ? teamLogos[team] : undefined;
 
   return (
@@ -37,10 +44,10 @@ export function TeamLogo({ team, showLabel = true, className = "" }: TeamLogoPro
           width={20}
           height={20}
           loading="lazy"
-          className="h-5 w-5 object-contain shrink-0"
+          className="h-[calc(var(--rhr-fs,14px)*1.429)] w-[calc(var(--rhr-fs,14px)*1.429)] object-contain shrink-0"
         />
       ) : (
-        <span className="grid h-5 w-5 place-items-center rounded-full bg-muted text-[8px] font-bold text-muted-foreground shrink-0">
+        <span className="grid h-[calc(var(--rhr-fs,14px)*1.429)] w-[calc(var(--rhr-fs,14px)*1.429)] place-items-center rounded-full bg-muted text-[calc(var(--rhr-fs,14px)*0.571)] font-bold text-muted-foreground shrink-0">
           {team === "FA" ? "FA" : team.slice(0, 2)}
         </span>
       )}

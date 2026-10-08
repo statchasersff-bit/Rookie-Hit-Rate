@@ -1,5 +1,13 @@
 import type { RookieDraft, SeasonFinish, Pos, Format, Scoring } from "./types";
 
+// Base URL for the CSV data files. Defaults to the site-root "/data/" used by
+// the standalone deployment, but can be overridden at runtime (e.g. when the app
+// is embedded from a WordPress plugin subfolder) by setting
+// `window.__RHR_DATA_BASE__` before the bundle loads.
+const DATA_BASE: string =
+  (typeof window !== "undefined" && (window as unknown as { __RHR_DATA_BASE__?: string }).__RHR_DATA_BASE__) ||
+  "/data/";
+
 const validPositions = new Set(["QB", "RB", "WR", "TE"]);
 
 function parseCSV<T>(text: string, transform: (row: Record<string, string>) => T | null): T[] {
@@ -19,7 +27,7 @@ function parseCSV<T>(text: string, transform: (row: Record<string, string>) => T
 }
 
 export async function loadRookieDrafts(): Promise<RookieDraft[]> {
-  const res = await fetch("/data/rookie_drafts.csv");
+  const res = await fetch(`${DATA_BASE}rookie_drafts.csv`);
   const text = await res.text();
   return parseCSV(text, (row) => {
     const pos = row.pos as Pos;
@@ -47,7 +55,7 @@ export async function loadRookieDrafts(): Promise<RookieDraft[]> {
 }
 
 export async function loadSeasonFinishes(): Promise<SeasonFinish[]> {
-  const res = await fetch("/data/season_finishes.csv");
+  const res = await fetch(`${DATA_BASE}season_finishes.csv`);
   const text = await res.text();
   return parseCSV(text, (row) => ({
     player_id: row.player_id,

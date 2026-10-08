@@ -6,7 +6,7 @@ import {
   ReferenceLine, CartesianGrid,
 } from "recharts";
 import { SnapshotStat } from "@/components/SnapshotStat";
-import { Zap, Clock, TrendingUp, ArrowUpRight, Award, Layers, Timer, ShieldCheck } from "lucide-react";
+import { Zap, Clock, ArrowUpRight, Award } from "lucide-react";
 import type { KpiAccent } from "@/lib/kpiCardStyle";
 import type { Pos } from "@/lib/types";
 
@@ -34,18 +34,16 @@ interface CohortInsight {
   accent: KpiAccent;
 }
 
-const toneContextColor: Record<CohortInsight["tone"], string> = {
-  positive: "text-emerald-400",
-  negative: "text-rose-400",
-  neutral: "text-slate-400",
-};
-
-function computePatienceIndex(group: SurvivalGroup): number {
-  const y1 = group.data.find((d) => d.year === 1)?.pct ?? 0;
-  const ceiling = Math.max(...group.data.map((d) => d.pct), 0.001);
-  if (ceiling === 0) return 100;
-  const y1Share = y1 / ceiling;
-  return Math.round((1 - y1Share) * 100);
+// Conditional hit odds: given a player has NOT hit by a checkpoint, the chance
+// they still record a first hit at some later point in their career.
+//   P(eventually hits | not hit by checkpoint) = (ceiling - Hk) / (1 - Hk)
+// where Hk is the cumulative hit share by that checkpoint and `ceiling` is the
+// eventual (career) hit rate. Returns a 0–1 fraction; 0 when everyone in the
+// group has already hit (denominator 0), so there's no "hasn't hit yet" cohort.
+function conditionalHitOdds(ceiling: number, hitByCheckpoint: number): number {
+  const notYetHit = 1 - hitByCheckpoint;
+  if (notYetHit <= 0) return 0;
+  return Math.max(0, (ceiling - hitByCheckpoint) / notYetHit);
 }
 
 function generateCohortInsights(
@@ -65,8 +63,8 @@ function generateCohortInsights(
     insights.push({
       icon: Zap,
       title: "Fastest to Hit",
-      stat: `${(fastest.y1 * 100).toFixed(1)}% Year 1`,
-      body: `${fastest.group} (N=${fastest.n}) breaks out fastest.${withY1.length > 1 ? ` ${withY1[withY1.length - 1].group}: just ${(withY1[withY1.length - 1].y1 * 100).toFixed(1)}%.` : ""}`,
+      stat: fastest.group,
+      body: `${(fastest.y1 * 100).toFixed(1)}% by Year 1 (N=${fastest.n}). Breaks out fastest.${withY1.length > 1 ? ` ${withY1[withY1.length - 1].group}: just ${(withY1[withY1.length - 1].y1 * 100).toFixed(1)}%.` : ""}`,
       tone: "positive",
       accent: "gold",
     });
@@ -81,9 +79,9 @@ function generateCohortInsights(
     const lowest = withCeiling[withCeiling.length - 1];
     insights.push({
       icon: Award,
-      title: "Highest Ceiling",
-      stat: `${(highest.ceiling * 100).toFixed(1)}%`,
-      body: `${highest.group} leads long-term (N=${highest.n}).${withCeiling.length > 1 && lowest.ceiling < highest.ceiling ? ` ${lowest.group} caps at ${(lowest.ceiling * 100).toFixed(1)}%.` : ""}`,
+      title: "Highest Chance to Hit",
+      stat: highest.group,
+      body: `${(highest.ceiling * 100).toFixed(1)}% long-term (N=${highest.n}). Leads the field.${withCeiling.length > 1 && lowest.ceiling < highest.ceiling ? ` ${lowest.group} caps at ${(lowest.ceiling * 100).toFixed(1)}%.` : ""}`,
       tone: "positive",
       accent: "emerald",
     });
@@ -98,25 +96,13 @@ function generateCohortInsights(
     .filter((g) => g.y3 > 0)
     .sort((a, b) => b.delta - a.delta);
 
-  if (deltaAfter3.length > 0 && deltaAfter3[0].delta > 0.02) {
-    const top = deltaAfter3[0];
-    insights.push({
-      icon: TrendingUp,
-      title: "Post-Year 3 Growth",
-      stat: `+${(top.delta * 100).toFixed(1)}pts`,
-      body: `${top.group}: ${(top.y3 * 100).toFixed(1)}% → ${(top.y6 * 100).toFixed(1)}% between Years 3–6. Patience rewarded.`,
-      tone: "neutral",
-      accent: "sky",
-    });
-  }
-
   const earlyPlateau = deltaAfter3.filter((g) => g.delta < 0.03 && g.y3 > 0.1);
   if (earlyPlateau.length > 0) {
     insights.push({
       icon: Clock,
       title: "Early Plateau",
-      stat: `Year 3`,
-      body: `${earlyPlateau.map((g) => g.group).join(", ")} plateau by Year 3. If they haven't hit, they likely won't.`,
+      stat: earlyPlateau.map((g) => g.group).join(", "),
+      body: `Plateau by Year 3. If they haven't hit, they likely won't.`,
       tone: "negative",
       accent: "rose",
     });
@@ -127,28 +113,11 @@ function generateCohortInsights(
     insights.push({
       icon: ArrowUpRight,
       title: "Late Bloomers",
-      stat: `+${lateBloomers.map((g) => `${(g.delta * 100).toFixed(1)}`).join(", ")}pts`,
-      body: `${lateBloomers.map((g) => g.group).join(", ")} develop well past Year 3. Hold longer before cutting.`,
+      stat: lateBloomers.map((g) => g.group).join(", "),
+      body: `+${lateBloomers.map((g) => `${(g.delta * 100).toFixed(1)}`).join(", ")}pts past Year 3, so they develop late. Hold longer before cutting.`,
       tone: "neutral",
       accent: "violet",
     });
-  }
-
-  if (survivalData.length >= 3) {
-    const y6Sorted = survivalData
-      .map((g) => ({ group: g.group, y6: g.data.find((d) => d.year === 6)?.pct ?? 0 }))
-      .sort((a, b) => b.y6 - a.y6);
-    const spread = y6Sorted[0].y6 - y6Sorted[y6Sorted.length - 1].y6;
-    if (spread > 0.15) {
-      insights.push({
-        icon: Layers,
-        title: "Wide Separation",
-        stat: `${(spread * 100).toFixed(1)}pt gap`,
-        body: `${y6Sorted[0].group} (${(y6Sorted[0].y6 * 100).toFixed(1)}%) vs ${y6Sorted[y6Sorted.length - 1].group} (${(y6Sorted[y6Sorted.length - 1].y6 * 100).toFixed(1)}%). Draft capital matters.`,
-        tone: "neutral",
-        accent: "blue",
-      });
-    }
   }
 
   return insights;
@@ -180,8 +149,17 @@ export function CohortSurvivalChart() {
   );
 
 
+  // "Doesn't hit as a rookie" = has not hit by year 1, so the conditional odds
+  // use the year-1 cumulative share as the checkpoint.
   const patienceData = useMemo(
-    () => survivalData.map((g) => ({ group: g.group, n: g.n, pi: computePatienceIndex(g) })).sort((a, b) => b.pi - a.pi),
+    () =>
+      survivalData
+        .map((g) => {
+          const y1 = g.data.find((d) => d.year === 1)?.pct ?? 0;
+          const ceiling = Math.max(...g.data.map((d) => d.pct), 0);
+          return { group: g.group, n: g.n, odds: conditionalHitOdds(ceiling, y1) * 100 };
+        })
+        .sort((a, b) => b.odds - a.odds),
     [survivalData]
   );
 
@@ -190,20 +168,14 @@ export function CohortSurvivalChart() {
       const y1 = g.data.find((d) => d.year === 1)?.pct ?? 0;
       const y2 = g.data.find((d) => d.year === 2)?.pct ?? 0;
       const y3 = g.data.find((d) => d.year === 3)?.pct ?? 0;
-      const ceiling = Math.max(...g.data.map((d) => d.pct), 0.001);
-      return {
-        group: g.group,
-        n: g.n,
-        afterY1: ceiling > 0 ? Math.max(0, ((ceiling - y1) / ceiling) * ceiling * 100) : 0,
-        afterY2: ceiling > 0 ? Math.max(0, ((ceiling - y2) / ceiling) * ceiling * 100) : 0,
-        afterY3: ceiling > 0 ? Math.max(0, ((ceiling - y3) / ceiling) * ceiling * 100) : 0,
-        y1, y2, y3, ceiling,
-      };
+      const ceiling = Math.max(...g.data.map((d) => d.pct), 0);
+      return { group: g.group, n: g.n, y1, y2, y3, ceiling };
     });
   }, [survivalData]);
 
   const { sortedRoster, rosterTakeaway } = useMemo(() => {
-    const withRem = rosterOdds.map((r) => ({ ...r, remY3: Math.max(0, r.ceiling - r.y3) }));
+    // Rank by the conditional odds a player who hasn't hit by Year 3 ever will.
+    const withRem = rosterOdds.map((r) => ({ ...r, remY3: conditionalHitOdds(r.ceiling, r.y3) }));
     const sorted = [...withRem].sort((a, b) => b.remY3 - a.remY3);
     if (sorted.length === 0) return { sortedRoster: [], rosterTakeaway: "" };
     const bottom = sorted[sorted.length - 1];
@@ -231,10 +203,27 @@ export function CohortSurvivalChart() {
     });
   }, [survivalData]);
 
+  // Start the Y axis just below the lowest plotted point (5 percentage points
+  // under it, floored at 0) rather than always at 0, so the lines fill the plot.
+  const yMin = useMemo(() => {
+    let min = Infinity;
+    for (const row of chartData) {
+      for (const key in row) {
+        if (key === "year") continue;
+        const v = row[key];
+        if (typeof v === "number" && v < min) min = v;
+      }
+    }
+    return Number.isFinite(min) ? Math.max(0, min - 0.05) : 0;
+  }, [chartData]);
+
   const getColor = (group: string) => {
     if (groupBy === "pos") return posGroupColors[group] || "#0b3a7a";
     return roundGroupColors[group] || "#0b3a7a";
   };
+
+  // In round mode the group is "Round 1", "Round 2", … — show just the number.
+  const groupLabel = (group: string) => (groupBy === "round" ? group.replace(/^Round\s+/, "") : group);
 
   return (
     <div className="space-y-4" data-testid="cohort-survival-chart">
@@ -247,7 +236,6 @@ export function CohortSurvivalChart() {
                 label={insight.title}
                 value={insight.stat}
                 context={insight.body}
-                contextColor={toneContextColor[insight.tone]}
                 icon={insight.icon}
                 accent={insight.accent}
                 testId={`cohort-insight-${idx}`}
@@ -310,7 +298,7 @@ export function CohortSurvivalChart() {
               axisLine={false}
               tickLine={false}
               tickFormatter={(v: number) => `${(v * 100).toFixed(0)}%`}
-              domain={[0, "auto"]}
+              domain={[yMin, "auto"]}
             />
             <ReferenceLine x={3} stroke="#d4af37" strokeDasharray="4 4" strokeOpacity={0.4} label={{ value: "Year 3", position: "top", fontSize: 9, fill: "#d4af37" }} />
             <Tooltip
@@ -344,10 +332,6 @@ export function CohortSurvivalChart() {
               verticalAlign="top"
               align="center"
               wrapperStyle={{ fontSize: 11, paddingBottom: 8 }}
-              formatter={(value: string) => {
-                const sg = survivalData.find((s) => s.group === value);
-                return `${value} (N=${sg?.n ?? "?"})`;
-              }}
             />
             {survivalData.map((group) => (
               <Line
@@ -366,53 +350,62 @@ export function CohortSurvivalChart() {
         </ResponsiveContainer>
       </div>
 
-      <div className="space-y-3" data-testid="patience-roster-module">
+      <div className="space-y-4" data-testid="patience-roster-module">
         <div>
-          <h3 className="scff-title text-[clamp(1.05rem,1.8vw,1.3rem)] text-[#0b1634] dark:text-white">Patience &amp; Roster Decision Aid</h3>
-          <p className="text-xs text-muted-foreground mt-0.5">How long should dynasty managers wait before moving on?</p>
+          <h2 className="scff-title text-[clamp(1.25rem,2.4vw,1.6rem)] text-[#0b1634] dark:text-white">Patience &amp; Roster Decision Aid</h2>
+          <div className="scff-accent-bar mt-1.5" />
+          <p className="text-xs text-muted-foreground mt-2">How long should dynasty managers wait before moving on?</p>
         </div>
 
-        <div className="grid gap-x-8 gap-y-4 md:grid-cols-2">
-          <div data-testid="patience-index">
+        <div className="grid gap-x-3 gap-y-5 [grid-template-columns:1fr] min-[420px]:[grid-template-columns:minmax(140px,0.85fr)_minmax(190px,1.35fr)]">
+          <div data-testid="patience-index" className="flex flex-col [container-type:inline-size]">
             <div className="flex items-center gap-2">
-              <Timer className="w-4 h-4 text-[#d4af37]" />
-              <span className="text-xs font-bold text-[#0b3a7a] dark:text-white">Patience Index</span>
+              <span className="text-xs font-bold text-[#0b3a7a] dark:text-white">Hit Rates After Year 1</span>
             </div>
             <p className="text-[10px] text-muted-foreground mt-0.5 mb-2.5">
-              Share of eventual hits that came after Year 1 · higher = more patience required before declaring a miss
+              Odds of an eventual {outcomeName} hit if a player doesn't hit in his rookie season
             </p>
-            <div className="space-y-2">
-              {patienceData.map((p) => (
-                <div key={p.group} className="flex items-center gap-2">
-                  <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: getColor(p.group) }} />
-                  <span className="text-[10px] font-semibold w-7 text-[#0b1634] dark:text-white">{p.group}</span>
-                  <span className="text-xs font-bold tabular-nums w-9 text-right text-[#0b3a7a] dark:text-[#d4af37]">{p.pi}%</span>
-                  <div className="flex-1 max-w-[150px] h-1.5 bg-muted rounded-full overflow-hidden">
-                    <div
-                      className="h-full rounded-full bg-slate-400 dark:bg-slate-500 transition-all"
-                      style={{ width: `${p.pi}%` }}
-                    />
-                  </div>
-                </div>
-              ))}
-            </div>
+            <table className="w-full text-[10px] border border-border mt-auto">
+              <thead>
+                <tr className="bg-[#0b1634] border-b border-border">
+                  <th className="text-left text-white/70 uppercase tracking-wider font-bold text-[clamp(7px,1.6vw,10px)] py-1.5 px-[clamp(5px,1.4cqw,7px)]">{groupBy === "round" ? "Round" : "Pos"}</th>
+                  <th className="text-right text-white/70 uppercase tracking-wider font-bold text-[clamp(7px,1.6vw,10px)] py-1.5 px-[clamp(5px,1.4cqw,7px)]">Hit %</th>
+                  <th className="text-left text-white/70 uppercase tracking-wider font-bold text-[clamp(7px,1.6vw,10px)] py-1.5 px-[clamp(5px,1.4cqw,7px)] w-1/2"><span className="sr-only">Hit odds gauge</span></th>
+                </tr>
+              </thead>
+              <tbody>
+                {patienceData.map((p) => (
+                  <tr key={p.group} className="border-b border-border/40 last:border-0">
+                    <td className="py-1.5 px-[clamp(5px,1.4cqw,7px)] text-xs font-extrabold" style={{ color: getColor(p.group) }}>{groupLabel(p.group)}</td>
+                    <td className="py-1.5 px-[clamp(5px,1.4cqw,7px)] text-right tabular-nums font-bold text-[#0b3a7a] dark:text-[#d4af37]">{p.odds.toFixed(1)}%</td>
+                    <td className="py-1.5 px-[clamp(5px,1.4cqw,7px)]">
+                      <div className="h-2 bg-muted rounded-full overflow-hidden">
+                        <div
+                          className="h-full rounded-full bg-slate-400 dark:bg-slate-500 transition-all"
+                          style={{ width: `${Math.min(100, p.odds)}%` }}
+                        />
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
 
-          <div data-testid="roster-decision-aid">
+          <div data-testid="roster-decision-aid" className="flex flex-col [container-type:inline-size]">
             <div className="flex items-center gap-2">
-              <ShieldCheck className="w-4 h-4 text-[#0b3a7a] dark:text-[#d4af37]" />
               <span className="text-xs font-bold text-[#0b3a7a] dark:text-white">Remaining Hit Odds</span>
             </div>
             <p className="text-[10px] text-muted-foreground mt-0.5 mb-2.5">
               Odds of an eventual {outcomeName} hit if a player has not hit by each season checkpoint
             </p>
-            <table className="w-full text-[10px]">
+            <table className="w-full text-[10px] border border-border mt-auto">
               <thead>
-                <tr className="text-muted-foreground border-b border-border">
-                  <th className="text-left font-medium uppercase tracking-wider py-1">Pos</th>
-                  <th className="text-right font-medium uppercase tracking-wider py-1">After Y1</th>
-                  <th className="text-right font-medium uppercase tracking-wider py-1">After Y2</th>
-                  <th className="text-right font-medium uppercase tracking-wider py-1">After Y3</th>
+                <tr className="bg-[#0b1634] border-b border-border">
+                  <th className="text-left text-white/70 uppercase tracking-wider font-bold text-[clamp(7px,1.6vw,10px)] py-1.5 px-[clamp(5px,1.4cqw,7px)]">{groupBy === "round" ? "Round" : "Pos"}</th>
+                  <th className="text-right text-white/70 uppercase tracking-wider font-bold text-[clamp(7px,1.6vw,10px)] py-1.5 px-[clamp(5px,1.4cqw,7px)]">After Y1</th>
+                  <th className="text-right text-white/70 uppercase tracking-wider font-bold text-[clamp(7px,1.6vw,10px)] py-1.5 px-[clamp(5px,1.4cqw,7px)]">After Y2</th>
+                  <th className="text-right text-white/70 uppercase tracking-wider font-bold text-[clamp(7px,1.6vw,10px)] py-1.5 px-[clamp(5px,1.4cqw,7px)]">After Y3</th>
                 </tr>
               </thead>
               <tbody>
@@ -428,17 +421,10 @@ export function CohortSurvivalChart() {
                           : "";
                   return (
                     <tr key={r.group} className="border-b border-border/40 last:border-0">
-                      <td className="py-1.5">
-                        <span
-                          className="inline-block px-1.5 py-0.5 rounded font-bold"
-                          style={{ color: getColor(r.group), backgroundColor: `${getColor(r.group)}1f` }}
-                        >
-                          {r.group}
-                        </span>
-                      </td>
-                      <td className={`py-1.5 text-right tabular-nums ${cls(r.ceiling - r.y1)}`}>{cell(r.ceiling - r.y1)}</td>
-                      <td className={`py-1.5 text-right tabular-nums ${cls(r.ceiling - r.y2)}`}>{cell(r.ceiling - r.y2)}</td>
-                      <td className={`py-1.5 text-right tabular-nums ${cls(r.ceiling - r.y3)}`}>{cell(r.ceiling - r.y3)}</td>
+                      <td className="py-1.5 px-[clamp(5px,1.4cqw,7px)] text-xs font-extrabold" style={{ color: getColor(r.group) }}>{groupLabel(r.group)}</td>
+                      <td className={`py-1.5 px-[clamp(5px,1.4cqw,7px)] text-right tabular-nums ${cls(conditionalHitOdds(r.ceiling, r.y1))}`}>{cell(conditionalHitOdds(r.ceiling, r.y1))}</td>
+                      <td className={`py-1.5 px-[clamp(5px,1.4cqw,7px)] text-right tabular-nums ${cls(conditionalHitOdds(r.ceiling, r.y2))}`}>{cell(conditionalHitOdds(r.ceiling, r.y2))}</td>
+                      <td className={`py-1.5 px-[clamp(5px,1.4cqw,7px)] text-right tabular-nums ${cls(conditionalHitOdds(r.ceiling, r.y3))}`}>{cell(conditionalHitOdds(r.ceiling, r.y3))}</td>
                     </tr>
                   );
                 })}
@@ -448,8 +434,9 @@ export function CohortSurvivalChart() {
         </div>
 
         {rosterTakeaway && (
-          <div className="text-[11px] text-muted-foreground border-t border-border/50 pt-2.5">
-            <span className="font-semibold text-[#0b3a7a] dark:text-[#d4af37]">Key Takeaway:</span> {rosterTakeaway}
+          <div className="rounded-lg border-l-[3px] border-[#d4af37] bg-[#0b3a7a]/[0.04] dark:bg-[#d4af37]/[0.06] px-3.5 py-2.5">
+            <div className="text-[10px] font-bold uppercase tracking-wider text-[#d4af37]">Key Takeaway</div>
+            <p className="text-xs text-[#0b1634] dark:text-slate-200 mt-0.5">{rosterTakeaway}</p>
           </div>
         )}
       </div>

@@ -2,36 +2,26 @@ import { useMemo, type ReactNode } from "react";
 import { useData } from "@/lib/data-context";
 import { AlertCircle } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { getHeatColor } from "@/lib/heatColor";
+import { HeatLegend } from "@/components/heat-legend";
 import type { Pos, CohortSummary } from "@/lib/types";
 
 const allPositions: Pos[] = ["QB", "RB", "WR", "TE"];
 const allRounds = [1, 2, 3, 4, 5];
 
-const posColors: Record<Pos, { bg: string; text: string; darkBg: string; darkText: string }> = {
-  QB: { bg: "bg-red-600", text: "text-white", darkBg: "dark:bg-red-500", darkText: "dark:text-white" },
-  RB: { bg: "bg-emerald-600", text: "text-white", darkBg: "dark:bg-emerald-500", darkText: "dark:text-white" },
-  WR: { bg: "bg-blue-600", text: "text-white", darkBg: "dark:bg-blue-500", darkText: "dark:text-white" },
-  TE: { bg: "bg-[#d4af37]", text: "text-[#0a1628]", darkBg: "dark:bg-[#d4af37]", darkText: "dark:text-[#0a1628]" },
+const posTextColor: Record<Pos, string> = {
+  QB: "#dc2626",
+  RB: "#059669",
+  WR: "#2563eb",
+  TE: "#d4af37",
 };
-
-// Color scale with clearly stepped tiers:
-// 0–14% very pale gray · 15–29% pale blue · 30–49% medium blue · 50–69% strong blue · 70%+ soft gold
-function getHeatColor(rate: number, isDark: boolean): string {
-  if (rate >= 0.7) return isDark ? "bg-[#d4af37]/30 text-[#d4af37]" : "bg-[#d4af37]/25 text-[#0b3a7a]";
-  if (rate >= 0.5) return isDark ? "bg-[#0b3a7a]/75 text-white" : "bg-[#0b3a7a]/35 text-[#0b3a7a]";
-  if (rate >= 0.3) return isDark ? "bg-[#0b3a7a]/45 text-blue-100" : "bg-[#0b3a7a]/18 text-[#0b3a7a]";
-  if (rate >= 0.15) return isDark ? "bg-[#0b3a7a]/22 text-blue-300" : "bg-[#0b3a7a]/8 text-[#0b3a7a]/70";
-  return isDark ? "bg-slate-800/40 text-slate-400" : "bg-slate-100 text-slate-400";
-}
 
 function isLowConfidence(cohort: CohortSummary): boolean {
   return cohort.total < 10;
 }
 
-// Border treatment communicates reliability, not just magnitude:
-// low-sample cells get a dashed amber border so a high % can't masquerade as the strongest data point.
-function getCellBorder(rate: number, cohort: CohortSummary): string {
-  if (isLowConfidence(cohort)) return "border-2 border-dashed border-amber-400/70 dark:border-amber-400/60";
+// Border treatment communicates magnitude via a subtle ring on the strongest cells.
+function getCellBorder(rate: number): string {
   if (rate >= 0.7) return "ring-2 ring-[#d4af37]/50";
   if (rate >= 0.5) return "ring-1 ring-[#0b3a7a]/20 dark:ring-[#d4af37]/20";
   return "";
@@ -43,7 +33,7 @@ function getConfidenceDot(cohort: CohortSummary): { color: string; label: string
   return { color: "bg-red-400", label: "Low confidence (small sample)" };
 }
 
-export function HeatmapTable({ aside }: { aside?: ReactNode }) {
+export function HeatmapTable({ aside, headerActions }: { aside?: ReactNode; headerActions?: ReactNode }) {
   const { cohorts, filters, setHoveredCell, setSelectedCell, hoveredCell, selectedCell } = useData();
 
   const cohortMap = useMemo(() => {
@@ -70,29 +60,33 @@ export function HeatmapTable({ aside }: { aside?: ReactNode }) {
   // Mirror the outcome threshold used in cohort.ts (Top-12, Top-24, Top-36) so the
   // subtitle can state what the % actually measures.
   const outcomeName = filters.outcome === "elite" ? "Top-12" : filters.outcome === "starter" ? "Top-24" : "Top-36";
-  const outcomeThreshold = filters.outcome === "elite" ? 12 : filters.outcome === "starter" ? 24 : 36;
 
   return (
-    <div className="w-full lg:w-fit" data-testid="heatmap-table">
+    <div className="w-full max-w-[1380px]" data-testid="heatmap-table">
       <div className="mb-3.5">
-        <h2 className="scff-title text-[clamp(1.15rem,2.2vw,1.45rem)] text-[#0b1634] dark:text-white">
-          Rookie Hit Rates
-        </h2>
+        <div className="flex items-center justify-between gap-3 flex-wrap">
+          <h2 className="scff-title text-[clamp(1.25rem,2.4vw,1.6rem)] text-[#0b1634] dark:text-white">
+            Rookie Hit Rates
+          </h2>
+          {headerActions}
+        </div>
         <div className="scff-accent-bar mt-1.5" />
         <p className="text-[13px] text-muted-foreground mt-2 max-w-2xl">
           <span className="font-semibold text-foreground">Hit Rate</span> = share of rookies who reached a{" "}
-          {outcomeName}-or-better finish (top {outcomeThreshold} at their position), by rookie draft round · {filters.yearStart}–{filters.yearEnd}.
+          {outcomeName.toLowerCase()}-or-better finish at their position at one point in their career.
         </p>
       </div>
 
-      <div className="flex flex-col lg:flex-row lg:items-stretch gap-6">
-        <div className="overflow-x-auto lg:flex-none">
-        <table className="border-collapse border border-border">
+      <div className="flex flex-col min-[500px]:flex-row min-[500px]:items-stretch gap-4 lg:gap-6 [container-type:inline-size]">
+        <div className="overflow-x-auto min-w-0 min-[500px]:flex-1">
+        <table className="w-full border-collapse">
           <thead>
             <tr className="bg-[#0b1634]">
-              <th className="text-left px-1.5 py-1 text-[11px] font-semibold uppercase tracking-wider text-white w-12" />
+              <th className="text-center px-1.5 py-1 text-[clamp(8px,1.6cqw,11px)] font-semibold uppercase tracking-wider text-white w-12">
+                POS
+              </th>
               {rounds.map((r) => (
-                <th key={r} className="px-1 py-1 text-[11px] font-semibold uppercase tracking-wider text-white text-center">
+                <th key={r} className="px-1 py-1 text-[clamp(8px,1.6cqw,11px)] font-semibold uppercase tracking-wider text-white text-center">
                   Rd {r}
                 </th>
               ))}
@@ -100,11 +94,10 @@ export function HeatmapTable({ aside }: { aside?: ReactNode }) {
           </thead>
           <tbody>
             {positions.map((pos) => {
-              const pc = posColors[pos];
               return (
                 <tr key={pos}>
-                  <td className="px-1.5 py-1 align-middle">
-                    <span className={`inline-flex items-center justify-center w-9 h-8 text-xs font-bold rounded-lg shadow-sm ring-1 ring-black/5 dark:ring-white/10 ${pc.bg} ${pc.text} ${pc.darkBg} ${pc.darkText}`}>
+                  <td className="px-1.5 py-1 align-middle text-center">
+                    <span className="text-[clamp(8px,1.7cqw,12px)] font-extrabold" style={{ color: posTextColor[pos] }}>
                       {pos}
                     </span>
                   </td>
@@ -129,7 +122,7 @@ export function HeatmapTable({ aside }: { aside?: ReactNode }) {
                         <Tooltip>
                           <TooltipTrigger asChild>
                             <button
-                              className={`relative flex flex-col items-center justify-center w-full min-w-[128px] h-[62px] px-2 rounded-md cursor-pointer transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0b3a7a]/60 dark:focus-visible:ring-[#d4af37]/60 focus-visible:z-10 ${getHeatColor(rate, isDark)} ${cohort && !isSelected ? getCellBorder(rate, cohort) : ""} ${selectedRing} ${lowOpacity} ${
+                              className={`relative flex flex-col items-center justify-center w-full min-w-0 h-[clamp(38px,7.5cqw,53px)] px-[5px] rounded-md cursor-pointer transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0b3a7a]/60 dark:focus-visible:ring-[#d4af37]/60 focus-visible:z-10 ${getHeatColor(rate, isDark)} ${cohort && !isSelected ? getCellBorder(rate) : ""} ${selectedRing} ${lowOpacity} ${
                                 isHovered ? "scale-[1.01] shadow-sm z-10" : "hover:shadow-sm"
                               }`}
                               onMouseEnter={() => setHoveredCell({ pos, round })}
@@ -141,14 +134,14 @@ export function HeatmapTable({ aside }: { aside?: ReactNode }) {
                               {isSelected && (
                                 <span className="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-[#0b3a7a] dark:bg-[#d4af37]" aria-hidden="true" />
                               )}
-                              <div className="text-base font-bold tabular-nums leading-none">
+                              <div className="text-[clamp(11px,2.3cqw,16px)] font-bold tabular-nums leading-none">
                                 {cohort ? `${(rate * 100).toFixed(0)}%` : "—"}
                               </div>
                               <div className="flex items-center justify-center gap-1 mt-1">
                                 {conf && (
                                   <span className={`w-1.5 h-1.5 rounded-full ${conf.color} inline-block`} title={conf.label} />
                                 )}
-                                <span className={`text-[10px] tabular-nums ${lowConf ? "font-semibold text-amber-600 dark:text-amber-400" : "opacity-70"}`}>
+                                <span className={`text-[clamp(7px,1.45cqw,10px)] tabular-nums ${lowConf ? "font-semibold text-amber-600 dark:text-amber-400" : "opacity-70"}`}>
                                   n={cohort?.total ?? 0}
                                 </span>
                                 {filters.showConfidence && cohort && cohort.ci_width > 0.4 && (
@@ -219,38 +212,14 @@ export function HeatmapTable({ aside }: { aside?: ReactNode }) {
         </div>
 
         {aside && (
-          <div className="w-full lg:w-[300px] shrink-0 flex">
+          <div className="w-full min-[500px]:w-[170px] md:w-[240px] shrink-0 flex">
             {aside}
           </div>
         )}
       </div>
 
-      <div className="mt-3.5 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[11px] text-muted-foreground">
-        <div className="flex items-center gap-1.5">
-          <span className="font-semibold text-muted-foreground/90">Scale</span>
-          <div className="flex items-center gap-0.5">
-            <span className="w-3.5 h-2.5 rounded-sm bg-slate-100 dark:bg-slate-800/40" title="0%" />
-            <span className="w-3.5 h-2.5 rounded-sm bg-[#0b3a7a]/8 dark:bg-[#0b3a7a]/22" title="15%" />
-            <span className="w-3.5 h-2.5 rounded-sm bg-[#0b3a7a]/18 dark:bg-[#0b3a7a]/45" title="30%" />
-            <span className="w-3.5 h-2.5 rounded-sm bg-[#0b3a7a]/35 dark:bg-[#0b3a7a]/75" title="50%" />
-            <span className="w-3.5 h-2.5 rounded-sm bg-[#d4af37]/25 dark:bg-[#d4af37]/30 ring-1 ring-[#d4af37]/50" title="70%+" />
-          </div>
-          <span className="tabular-nums opacity-80">0 · 15 · 30 · 50 · 70%+</span>
-        </div>
-        <span className="hidden sm:inline opacity-30">|</span>
-        <div className="flex items-center gap-2">
-          <span className="font-semibold text-muted-foreground/90">Confidence</span>
-          <span className="inline-flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-emerald-500" />High</span>
-          <span className="inline-flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-amber-400" />Med</span>
-          <span className="inline-flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-red-400" />Low</span>
-          <span className="inline-flex items-center gap-1"><span className="w-3.5 h-2.5 rounded-sm border border-dashed border-amber-400/70" />Low sample</span>
-        </div>
-      </div>
+      <HeatLegend />
 
-      <p className="flex items-start gap-1.5 mt-1.5 text-[11px] text-muted-foreground/70 max-w-2xl">
-        <AlertCircle className="w-3 h-3 mt-px shrink-0 text-amber-500" />
-        <span>Low-confidence cells (dashed border) use smaller samples — treat them as directional, not predictive.</span>
-      </p>
     </div>
   );
 }

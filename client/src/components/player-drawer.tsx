@@ -97,7 +97,7 @@ export function PlayerDrawer({ player, onClose }: PlayerDrawerProps) {
             <div className="bg-muted/30 dark:bg-muted/20 rounded-md p-3 text-center">
               <div className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Breakout</div>
               <div className="text-sm font-bold text-[#0b1634] dark:text-white mt-1">
-                {player.breakout_time ? `Year ${player.breakout_time}` : "N/A"}
+                {player.breakout_time ? (player.breakout_time === 1 ? "Rookie" : `Year ${player.breakout_time}`) : "N/A"}
               </div>
             </div>
           </div>

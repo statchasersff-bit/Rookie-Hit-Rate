@@ -1,10 +1,10 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { HeatmapTable } from "@/components/heatmap-table";
 import { PickLensCard } from "@/components/pick-lens-card";
-import PickRange from "@/pages/pick-range";
+import { PickRangeHeatmap } from "@/components/pick-range-heatmap";
 import { SnapshotStat } from "@/components/SnapshotStat";
 import { useData } from "@/lib/data-context";
-import { Crown, TrendingDown, Zap, Clock, ShieldAlert, BarChart3 } from "lucide-react";
+import { Crown, Zap, BarChart3, Trophy, ArrowDownWideNarrow } from "lucide-react";
 import type { KpiAccent } from "@/lib/kpiCardStyle";
 import type { CohortSummary } from "@/lib/types";
 
@@ -35,35 +35,45 @@ function generateOverviewInsights(cohorts: CohortSummary[], outcomeName: string)
     title: "Overall Hit Rate",
     stat: `${(overallRate * 100).toFixed(1)}%`,
     body: `${totalHits} of ${totalPlayers} rookies reached the ${outcomeName.toLowerCase()} threshold.`,
-    tone: overallRate > 0.3 ? "positive" : overallRate > 0.15 ? "neutral" : "negative",
+    tone: "neutral",
     accent: "slate",
   });
 
-  const withHits = cohorts.filter((c) => c.total >= 5);
-  if (withHits.length > 0) {
-    const best = withHits.reduce((a, b) => (b.hit_rate > a.hit_rate ? b : a));
+  const byPosition = new Map<string, { hits: number; total: number }>();
+  for (const c of cohorts) {
+    const agg = byPosition.get(c.pos) ?? { hits: 0, total: 0 };
+    agg.hits += c.hits;
+    agg.total += c.total;
+    byPosition.set(c.pos, agg);
+  }
+  const positionRates = Array.from(byPosition.entries())
+    .filter(([, v]) => v.total > 0)
+    .map(([pos, v]) => ({ pos, hits: v.hits, total: v.total, rate: v.hits / v.total }));
+  if (positionRates.length > 1) {
+    const bestPos = positionRates.reduce((a, b) => (b.rate > a.rate ? b : a));
     insights.push({
-      icon: Crown,
-      title: "Best Cohort",
-      stat: `${(best.hit_rate * 100).toFixed(1)}%`,
-      body: `${best.pos} Round ${best.rookie_round} (${best.hits}/${best.total} players).${best.elite_rate > 0.2 ? ` ${(best.elite_rate * 100).toFixed(0)}% reach Top-12.` : ""}`,
-      tone: "positive",
+      icon: Trophy,
+      title: "Highest Position Hit Rate",
+      stat: `${(bestPos.rate * 100).toFixed(1)}%`,
+      body: `${bestPos.pos} hits most often: ${bestPos.hits}/${bestPos.total} rookies reached the ${outcomeName.toLowerCase()} threshold.`,
+      tone: "neutral",
       accent: "gold",
     });
 
-    const worst = withHits.reduce((a, b) => (b.hit_rate < a.hit_rate ? b : a));
-    if (worst.hit_rate < best.hit_rate) {
-      const missRate = 1 - worst.hit_rate;
+    const worstPos = positionRates.reduce((a, b) => (b.rate < a.rate ? b : a));
+    if (worstPos.pos !== bestPos.pos) {
       insights.push({
-        icon: TrendingDown,
-        title: "Toughest Cohort",
-        stat: `${(missRate * 100).toFixed(0)}% Miss`,
-        body: `${worst.pos} Round ${worst.rookie_round} — only ${worst.hits}/${worst.total} players hit at the ${outcomeName.toLowerCase()} threshold.`,
-        tone: "negative",
+        icon: ArrowDownWideNarrow,
+        title: "Lowest Position Hit Rate",
+        stat: `${(worstPos.rate * 100).toFixed(1)}%`,
+        body: `${worstPos.pos} hits least often: ${worstPos.hits}/${worstPos.total} rookies reached the ${outcomeName.toLowerCase()} threshold.`,
+        tone: "neutral",
         accent: "red",
       });
     }
   }
+
+  const withHits = cohorts.filter((c) => c.total >= 5);
 
   const fastBreakers = withHits
     .filter((c) => c.hit_by_year.year1 > 0.4 && c.hits >= 3)
@@ -75,38 +85,8 @@ function generateOverviewInsights(cohorts: CohortSummary[], outcomeName: string)
       title: "Rookie-Year Impact",
       stat: `${(top.hit_by_year.year1 * 100).toFixed(0)}% Year 1`,
       body: `${top.pos} Rd${top.rookie_round} hits break out immediately.${fastBreakers.length > 1 ? ` ${fastBreakers[1].pos} Rd${fastBreakers[1].rookie_round}: ${(fastBreakers[1].hit_by_year.year1 * 100).toFixed(0)}%.` : ""}`,
-      tone: "positive",
-      accent: "slate",
-    });
-  }
-
-  const slowBreakers = withHits
-    .filter((c) => c.hit_by_year.year3_plus > 0.4 && c.hits >= 3)
-    .sort((a, b) => b.hit_by_year.year3_plus - a.hit_by_year.year3_plus);
-  if (slowBreakers.length > 0) {
-    const top = slowBreakers[0];
-    insights.push({
-      icon: Clock,
-      title: "Slow Developers",
-      stat: `Year 3+`,
-      body: `${top.pos} Rd${top.rookie_round} — ${(top.hit_by_year.year3_plus * 100).toFixed(0)}% of hits don't break out until Year 3 or later.`,
       tone: "neutral",
       accent: "slate",
-    });
-  }
-
-  const highBust = withHits
-    .filter((c) => c.bust_rate > 0.7 && c.total >= 10)
-    .sort((a, b) => b.bust_rate - a.bust_rate);
-  if (highBust.length > 0) {
-    const names = highBust.slice(0, 3).map((c) => `${c.pos} Rd${c.rookie_round} (${(c.bust_rate * 100).toFixed(0)}%)`).join(", ");
-    insights.push({
-      icon: ShieldAlert,
-      title: "High Bust Zones",
-      stat: `${(highBust[0].bust_rate * 100).toFixed(0)}%+`,
-      body: `${names}. Manage expectations from these slots.`,
-      tone: "negative",
-      accent: "red",
     });
   }
 
@@ -122,12 +102,42 @@ export default function Overview() {
     [cohorts, outcomeName]
   );
 
+  const [tableView, setTableView] = useState<"hitRates" | "pickRange">("hitRates");
+
+  const viewToggle = (
+    <div
+      className="inline-flex items-center gap-1 rounded-lg bg-[var(--sc-card-soft)] border border-[var(--sc-border)] p-1 shrink-0"
+      role="tablist"
+      aria-label="Table view"
+    >
+      {([["hitRates", "Simple"], ["pickRange", "Detailed"]] as const).map(([val, label]) => {
+        const active = tableView === val;
+        return (
+          <button
+            key={val}
+            role="tab"
+            aria-selected={active}
+            onClick={() => setTableView(val)}
+            data-testid={`toggle-${val}`}
+            className={`whitespace-nowrap px-2.5 py-1 text-[11px] sm:text-xs font-semibold rounded-md transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#d4af37]/70 ${
+              active
+                ? "bg-[#d4af37] text-[#0b1634] shadow-sm"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            {label}
+          </button>
+        );
+      })}
+    </div>
+  );
+
   return (
     <div className="space-y-5" data-testid="page-overview">
       {insights.length > 0 && (
-        <div data-testid="overview-analysis">
+        <div data-testid="overview-analysis" className="-mt-5">
           <div className="mt-2 grid grid-cols-2 gap-2 min-[521px]:gap-2.5 min-[521px]:[grid-template-columns:repeat(auto-fit,minmax(175px,1fr))] md:[grid-template-columns:repeat(auto-fit,minmax(195px,1fr))]">
-            {insights.slice(0, 4).map((insight, idx) => (
+            {insights.slice(0, 6).map((insight, idx) => (
               <SnapshotStat
                 key={idx}
                 label={insight.title}
@@ -143,9 +153,11 @@ export default function Overview() {
         </div>
       )}
 
-      <HeatmapTable aside={<PickLensCard />} />
-
-      <PickRange />
+      {tableView === "hitRates" ? (
+        <HeatmapTable aside={<PickLensCard />} headerActions={viewToggle} />
+      ) : (
+        <PickRangeHeatmap headerActions={viewToggle} />
+      )}
     </div>
   );
 }
