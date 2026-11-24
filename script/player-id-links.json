@@ -1,0 +1,52 @@
+{
+  "_about": [
+    "Applied by script/link-player-ids.mjs to client/public/data/*.csv (idempotent).",
+    "season_finishes.csv keys each row on a slug of that SEASON's display name, so a",
+    "player whose listed name changes (Jr./Sr./III suffixes, Christopher vs Chris,",
+    "De'Von vs Devon, Miller-Hines) has his seasons split across several ids and the",
+    "rookie id in rookie_drafts.csv only finds some of them. Every alias below was",
+    "checked against nflverse stats_player_reg_<season>.csv: alias rows and target rows",
+    "are the same nflverse player_id (gsis), and no alias row predates the rookie year.",
+    "Verified 2026-11-24."
+  ],
+  "season_aliases": {
+    "deebo-samuel-sr": "deebo-samuel",
+    "kenneth-walker-iii": "kenneth-walker",
+    "laviska-shenault-jr": "laviska-shenault",
+    "terrace-marshall-jr": "terrace-marshall",
+    "calvin-austin-iii": "calvin-austin",
+    "john-metchie-iii": "john-metchie",
+    "velus-jones-jr": "velus-jones",
+    "chris-rodriguez-jr": "chris-rodriguez",
+    "marvin-mims-jr": "marvin-mims",
+    "de-angelo-henderson-sr": "de-angelo-henderson",
+    "la-mical-perine": "lamical-perine",
+    "devon-achane": "de-von-achane",
+    "christopher-herndon": "chris-herndon",
+    "chigoziem-okonkwo": "chig-okonkwo",
+    "christopher-brooks": "chris-brooks",
+    "joshua-palmer": "josh-palmer",
+    "nyheim-miller-hines": "nyheim-hines"
+  },
+  "rookie_renames": [
+    {
+      "_why": "The 2024 rookie is Frank Gore Jr.; 'frank-gore' is his father's id in season_finishes.csv (2017-2020). Gore Jr. has no NFL stat line through 2025.",
+      "from": "frank-gore",
+      "rookie_year": 2024,
+      "to": "frank-gore-jr",
+      "player_name": "Frank Gore Jr"
+    }
+  ],
+  "season_additions": [
+    {
+      "_why": "Absent from nflverse weekly player_stats, present in stats_player_reg_2018.csv (RB, CIN). Points use build_fantasy_data.py's formula on those totals.",
+      "player_id": "mark-walton", "player_name": "Mark Walton", "season": 2018, "pos": "RB", "games": 10,
+      "fantasy_points_ppr": 12.5, "fantasy_points_hppr": 10.0, "fantasy_points_std": 7.5
+    },
+    {
+      "_why": "Absent from nflverse weekly player_stats, present in stats_player_reg_2019.csv (RB, MIA).",
+      "player_id": "mark-walton", "player_name": "Mark Walton", "season": 2019, "pos": "RB", "games": 7,
+      "fantasy_points_ppr": 42.0, "fantasy_points_hppr": 34.5, "fantasy_points_std": 27.0
+    }
+  ]
+}

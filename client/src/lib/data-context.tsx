@@ -3,6 +3,7 @@ import type { RookieDraft, SeasonFinish, RankedSeason, Filters, CohortSummary, P
 import { loadRookieDrafts, loadSeasonFinishes } from "./loaders";
 import { computeRanks, buildRankMap } from "./ranks";
 import { computeCohorts, computePickRangeCohorts, computePlayerSummaries } from "./cohort";
+import { defaultFilters } from "./default-filters";
 
 interface DataContextType {
   drafts: RookieDraft[];
@@ -24,17 +25,6 @@ interface DataContextType {
   loading: boolean;
 }
 
-const defaultFilters: Filters = {
-  yearStart: 2017,
-  yearEnd: 2025,
-  format: "sf",
-  scoring: "ppr",
-  outcome: "elite",
-  positions: ["QB", "RB", "WR", "TE"],
-  rounds: [1, 2, 3, 4, 5],
-  minGames: 8,
-  showConfidence: false,
-};
 
 const DataContext = createContext<DataContextType>({
   drafts: [],
